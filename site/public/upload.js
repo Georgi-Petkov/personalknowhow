@@ -104,18 +104,38 @@ document.getElementById("upload-form").addEventListener("submit", async (event) 
   }
 });
 
-document.getElementById("delete-button").addEventListener("click", async () => {
-  if (!confirm("This permanently deletes your uploaded export and processed data. Continue?")) {
-    return;
-  }
+const deleteConfirmSection = document.getElementById("delete-confirm");
+const deleteEmailInput = document.getElementById("delete-email");
+const deleteConfirmButton = document.getElementById("delete-confirm-button");
 
-  const button = document.getElementById("delete-button");
-  button.disabled = true;
+document.getElementById("delete-button").addEventListener("click", () => {
+  document.getElementById("delete-button").hidden = true;
+  deleteConfirmSection.hidden = false;
+  deleteEmailInput.focus();
+});
+
+document.getElementById("delete-cancel").addEventListener("click", () => {
+  deleteConfirmSection.hidden = true;
+  document.getElementById("delete-button").hidden = false;
+  deleteEmailInput.value = "";
+  deleteConfirmButton.disabled = true;
+});
+
+deleteEmailInput.addEventListener("input", () => {
+  deleteConfirmButton.disabled = deleteEmailInput.value.trim().length === 0;
+});
+
+deleteConfirmButton.addEventListener("click", async () => {
+  const email = deleteEmailInput.value.trim();
+  if (!email) return;
+
+  deleteConfirmButton.disabled = true;
 
   try {
     const response = await fetch("/api/delete-data", {
       method: "POST",
-      headers: { "X-Upload-Token": token },
+      headers: { "X-Upload-Token": token, "Content-Type": "application/json" },
+      body: JSON.stringify({ email }),
     });
     const data = await response.json();
 
@@ -123,11 +143,11 @@ document.getElementById("delete-button").addEventListener("click", async () => {
       showView("deleted");
     } else {
       status.textContent = data.error || "Couldn't delete. Try again.";
-      button.disabled = false;
+      deleteConfirmButton.disabled = false;
     }
   } catch {
     status.textContent = "Network error. Try again.";
-    button.disabled = false;
+    deleteConfirmButton.disabled = false;
   }
 });
 

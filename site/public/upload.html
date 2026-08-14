@@ -68,6 +68,22 @@
         <p>
           <button id="delete-button" class="btn">Delete my data</button>
         </p>
+
+        <div id="delete-confirm" hidden>
+          <p>
+            This permanently deletes your uploaded export and processed data, and immediately
+            cuts off access to your MCP server — the link above will stop working. This can't
+            be undone.
+          </p>
+          <p>
+            <label for="delete-email">Type the email this invite was sent to, to confirm:</label><br />
+            <input type="email" id="delete-email" autocomplete="off" />
+          </p>
+          <p>
+            <button id="delete-cancel" class="btn">Cancel</button>
+            <button id="delete-confirm-button" class="btn btn-primary" disabled>Confirm deletion</button>
+          </p>
+        </div>
       </div>
 
       <div id="deleted-view" hidden>

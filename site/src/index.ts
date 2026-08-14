@@ -84,13 +84,51 @@ export default {
         return Response.json({ error: "Missing upload token." }, { status: 401 });
       }
 
+      let body: { email?: unknown };
+      try {
+        body = await request.json();
+      } catch {
+        return Response.json({ error: "Invalid JSON body." }, { status: 400 });
+      }
+      const enteredEmail = String(body.email ?? "").trim().toLowerCase();
+      if (!enteredEmail) {
+        return Response.json({ error: "Email is required to confirm deletion." }, { status: 400 });
+      }
+
       const invite = await env.DB.prepare(
-        "SELECT r2_upload_key, customer_label, deleted_at FROM upload_invites WHERE token = ?"
-      ).bind(token).first<{ r2_upload_key: string | null; customer_label: string | null; deleted_at: string | null }>();
+        "SELECT r2_upload_key, customer_label, deleted_at, email FROM upload_invites WHERE token = ?"
+      ).bind(token).first<{
+        r2_upload_key: string | null;
+        customer_label: string | null;
+        deleted_at: string | null;
+        email: string | null;
+      }>();
 
       if (!invite || invite.deleted_at) {
         return Response.json({ error: "Invalid link." }, { status: 401 });
       }
+      if (!invite.email) {
+        // No email on file to check against -- fail closed rather than silently
+        // accepting anything typed. Fix by setting one on the invite row.
+        return Response.json(
+          { error: "This invite has no email on file. Deletion can't be confirmed." },
+          { status: 400 },
+        );
+      }
+      if (enteredEmail !== invite.email.trim().toLowerCase()) {
+        return Response.json({ error: "That email doesn't match." }, { status: 403 });
+      }
+
+      // Set deleted_at FIRST -- this is the actual kill switch. Every customer Worker
+      // checks this column before serving anything, so access is cut off the instant
+      // this write lands, independent of whether the R2 cleanup below succeeds.
+      // mcp_url/customer_label are kept (not nulled) so the weekly cleanup digest can
+      // still name which deployed Worker needs manual teardown. mcp_token IS cleared --
+      // the server-side data behind it is already gone, so the bearer token is dead
+      // weight with no reason to keep.
+      await env.DB.prepare(
+        "UPDATE upload_invites SET deleted_at = ?, deleted_by_email = ?, mcp_token = NULL, r2_upload_key = NULL WHERE token = ?"
+      ).bind(new Date().toISOString(), enteredEmail, token).run();
 
       const keysToDelete = [invite.r2_upload_key];
       if (invite.customer_label) {
@@ -102,14 +140,6 @@ export default {
       await Promise.all(
         keysToDelete.filter((k): k is string => !!k).map((k) => env.STORAGE.delete(k))
       );
-
-      // mcp_url/customer_label are kept (not nulled) so the weekly cleanup digest can
-      // still name which deployed Worker needs manual teardown. mcp_token IS cleared --
-      // the server-side data behind it is already gone, so the bearer token is dead
-      // weight with no reason to keep.
-      await env.DB.prepare(
-        "UPDATE upload_invites SET deleted_at = ?, mcp_token = NULL, r2_upload_key = NULL WHERE token = ?"
-      ).bind(new Date().toISOString(), token).run();
 
       return Response.json({ ok: true });
     }
