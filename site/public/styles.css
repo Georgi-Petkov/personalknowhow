@@ -355,6 +355,33 @@ footer {
 
 footer p { color: var(--text-secondary); font-size: 0.9rem; }
 
+.footer-inner { display: flex; flex-direction: column; gap: 8px; }
+.footer-legal a { color: var(--text-secondary); }
+.footer-legal a:hover { color: var(--accent); }
+
+.legal {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 56px 24px 80px;
+}
+
+.legal h1 { font-size: 2rem; margin: 0 0 8px; }
+.legal .legal-updated { color: var(--text-secondary); font-size: 0.9rem; margin: 0 0 40px; }
+.legal h2 { font-size: 1.25rem; margin: 40px 0 12px; }
+.legal p, .legal li { color: var(--text-primary); line-height: 1.7; }
+.legal ul { padding-left: 20px; }
+.legal li { margin-bottom: 8px; }
+.legal a { color: var(--accent); }
+.legal .legal-note {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px 20px;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  margin-bottom: 40px;
+}
+
 @media (max-width: 520px) {
   .hero { padding: 64px 0 40px; }
   .waitlist form { flex-direction: column; }
