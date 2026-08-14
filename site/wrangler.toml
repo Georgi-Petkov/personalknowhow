@@ -13,6 +13,10 @@ binding = "DB"
 database_name = "personalknowhow-waitlist"
 database_id = "934afff4-c462-41b0-91ff-2232473c5286"
 
+[[r2_buckets]]
+binding = "STORAGE"
+bucket_name = "personalknowhow-storage"
+
 [[routes]]
 pattern = "personalknowhow.com"
 custom_domain = true

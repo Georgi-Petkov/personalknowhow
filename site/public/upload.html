@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<script>
+(function () {
+  var stored = localStorage.getItem("theme");
+  var theme = stored || (window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark");
+  document.documentElement.setAttribute("data-theme", theme);
+})();
+</script>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Upload your data — PersonalKnowHow</title>
+<meta name="robots" content="noindex" />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🧠</text></svg>" />
+<link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+
+<main>
+  <section class="section">
+    <div class="wrap" style="max-width: 560px;">
+      <h2>Upload your LinkedIn export</h2>
+      <p>
+        Upload the zip file from LinkedIn's "Request my data" export. It's sent straight to
+        private storage — nothing is processed automatically yet; you'll hear back by email
+        once it's done.
+      </p>
+      <form id="upload-form" novalidate>
+        <input type="file" name="file" accept=".zip" required aria-label="LinkedIn export zip file" />
+        <button type="submit" class="btn btn-primary">Upload</button>
+      </form>
+      <p id="upload-status" role="status" aria-live="polite"></p>
+    </div>
+  </section>
+</main>
+
+<script src="/upload.js"></script>
+</body>
+</html>

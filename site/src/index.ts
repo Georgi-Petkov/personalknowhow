@@ -1,6 +1,7 @@
 export interface Env {
   ASSETS: Fetcher;
   DB: D1Database;
+  STORAGE: R2Bucket;
 }
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -8,6 +9,41 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
+
+    if (url.pathname === "/api/upload" && request.method === "POST") {
+      const token = request.headers.get("X-Upload-Token") ?? "";
+      if (!token) {
+        return Response.json({ error: "Missing upload token." }, { status: 401 });
+      }
+
+      const invite = await env.DB.prepare(
+        "SELECT used_at FROM upload_invites WHERE token = ?"
+      ).bind(token).first<{ used_at: string | null }>();
+
+      if (!invite || invite.used_at) {
+        return Response.json({ error: "Invalid or already-used upload link." }, { status: 401 });
+      }
+
+      const formData = await request.formData();
+      const file = formData.get("file");
+      if (!(file instanceof File)) {
+        return Response.json({ error: "No file received." }, { status: 400 });
+      }
+
+      const bytes = await file.arrayBuffer();
+      if (bytes.byteLength === 0) {
+        return Response.json({ error: "The file arrived empty. Try again." }, { status: 400 });
+      }
+
+      const uploadId = crypto.randomUUID();
+      await env.STORAGE.put(`raw/${uploadId}.zip`, bytes);
+
+      await env.DB.prepare(
+        "UPDATE upload_invites SET used_at = ? WHERE token = ?"
+      ).bind(new Date().toISOString(), token).run();
+
+      return Response.json({ ok: true });
+    }
 
     if (url.pathname === "/api/waitlist" && request.method === "POST") {
       let body: { email?: unknown; note?: unknown };

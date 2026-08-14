@@ -1,0 +1,77 @@
+name: Process Customer Upload
+
+on:
+  workflow_dispatch:
+    inputs:
+      upload_key:
+        description: "R2 object key of the uploaded zip, e.g. raw/<uuid>.zip"
+        required: true
+      customer_label:
+        description: "Short label for this person, used as the R2 output prefix (e.g. wife)"
+        required: true
+
+env:
+  CLOUDFLARE_ACCOUNT_ID: "716dcf9e5806cc9dbb777e0b80bb236d"
+
+jobs:
+  process:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      # ── Download the customer's upload from R2 ────────────────────────────
+      - name: Download upload from R2
+        env:
+          CLOUDFLARE_R2_AI_TOKEN: ${{ secrets.CLOUDFLARE_R2_AI_TOKEN }}
+          UPLOAD_KEY: ${{ inputs.upload_key }}
+        run: |
+          mkdir -p "data/incoming/extracted/linkedin_${{ inputs.customer_label }}"
+          curl -sf -o /tmp/upload.zip \
+            -H "Authorization: Bearer $CLOUDFLARE_R2_AI_TOKEN" \
+            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/r2/buckets/personalknowhow-storage/objects/$UPLOAD_KEY"
+          unzip -o /tmp/upload.zip -d "data/incoming/extracted/linkedin_${{ inputs.customer_label }}"
+
+      # ── Run the existing, unmodified pipeline ─────────────────────────────
+      - name: Run LinkedIn ingest
+        run: |
+          python ingest/linkedin_ingest.py \
+            --extract-dir "data/incoming/extracted/linkedin_${{ inputs.customer_label }}" \
+            --json-summary
+
+      - name: Merge corpus
+        run: python ingest/merge.py
+
+      - name: Build knowledge graph
+        run: python ingest/build_graph.py
+
+      - name: Generate embeddings
+        env:
+          CLOUDFLARE_AI_TOKEN: ${{ secrets.CLOUDFLARE_R2_AI_TOKEN }}
+        run: python ingest/build_private_export.py
+
+      # ── Upload results to R2 — never committed to git ─────────────────────
+      - name: Upload results to R2
+        env:
+          CLOUDFLARE_R2_AI_TOKEN: ${{ secrets.CLOUDFLARE_R2_AI_TOKEN }}
+        run: |
+          BASE="https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/r2/buckets/personalknowhow-storage/objects"
+          PREFIX="customers/${{ inputs.customer_label }}"
+          curl -sf -X PUT \
+            -H "Authorization: Bearer $CLOUDFLARE_R2_AI_TOKEN" \
+            -H "Content-Type: application/json" \
+            --data-binary @mcp-private/private_entries.json \
+            "$BASE/$PREFIX/entries.json"
+          curl -sf -X PUT \
+            -H "Authorization: Bearer $CLOUDFLARE_R2_AI_TOKEN" \
+            -H "Content-Type: application/json" \
+            --data-binary @mcp-private/private_embeddings.json \
+            "$BASE/$PREFIX/embeddings.json"
+          echo "Wrote $PREFIX/entries.json and $PREFIX/embeddings.json to R2."

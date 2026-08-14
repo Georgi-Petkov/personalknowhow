@@ -66,6 +66,8 @@ function createServer(env: Env) {
   server.registerTool(
     "query_knowhow",
     {
+      title: "Query know-how",
+      annotations: { readOnlyHint: true },
       description:
         "Search this person's real, grounded skills/experience graph for a topic using " +
         "semantic search. Returns only entries with real evidence -- never guesses. Every " +
@@ -106,6 +108,8 @@ function createServer(env: Env) {
   server.registerTool(
     "list_by_type",
     {
+      title: "List know-how by type",
+      annotations: { readOnlyHint: true },
       description:
         "Returns the COMPLETE, exact set of entries for one type, with no similarity " +
         "ranking, no relevance cutoff, and no cap on count. Use this instead of " +
