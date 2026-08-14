@@ -2,6 +2,13 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
+<script>
+(function () {
+  var stored = localStorage.getItem("theme");
+  var theme = stored || (window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark");
+  document.documentElement.setAttribute("data-theme", theme);
+})();
+</script>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>PersonalKnowHow — a queryable knowledge graph of what you actually know</title>
 <meta name="description" content="Turns your scattered learning and work history into a knowledge graph, served over real MCP servers with semantic search — so 'do I know X' gets answered with evidence, not a guess." />
@@ -10,16 +17,25 @@
 </head>
 <body>
 
+<nav class="site-nav">
+  <div class="wrap nav-inner">
+    <span class="nav-brand">PersonalKnowHow</span>
+    <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Switch between dark and light theme">
+      <svg class="icon-sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+      <svg class="icon-moon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+    </button>
+  </div>
+</nav>
+
 <header class="hero">
   <div class="wrap">
     <p class="eyebrow">Evidence-based knowledge graph · Real MCP servers</p>
-    <h1>Stop guessing what you know.<br>Query it instead.</h1>
+    <h1>Your resume is a story.<br>This is the evidence.</h1>
     <p class="lede">
-      PersonalKnowHow turns a scattered learning and work history — LinkedIn, GitHub, course
-      platforms, project repos — into a unified knowledge graph, served over real
-      <a href="https://modelcontextprotocol.io/" target="_blank" rel="noopener">MCP</a> servers with
-      semantic search. Ask "do I have Django experience?" and get back actual evidence with a
-      similarity score, not a keyword match.
+      A resume tells a story about what you know. PersonalKnowHow builds a knowledge graph from
+      what actually happened — your GitHub commits, course completions, project history — and
+      lets you query it directly. Ask "do I have Django experience?" and get back real evidence
+      with a similarity score, not a claim.
     </p>
     <div class="cta-row">
       <a class="btn btn-primary" href="https://github.com/Georgi-Petkov/personalknowhow" target="_blank" rel="noopener">View the code on GitHub</a>
@@ -29,6 +45,20 @@
 </header>
 
 <main>
+
+  <section class="section example">
+    <div class="wrap">
+      <pre><code>Query: "Do I have experience with distributed systems?"
+
+Evidence returned:
+→ 0.91  GitHub — kafka-consumer-pool (47 commits, 2023–2024)
+→ 0.84  DataCamp — "Distributed Computing with PySpark" (completed 2024-03)
+→ 0.79  LinkedIn — Endorsement: "Scaled our event pipeline" (colleague, 2023)
+
+Not a keyword match. Not self-reported. Ranked by semantic similarity to real
+provenance-tagged evidence.</code></pre>
+    </div>
+  </section>
 
   <section class="section">
     <div class="wrap">
@@ -151,5 +181,6 @@
 </footer>
 
 <script src="/waitlist.js"></script>
+<script src="/theme.js"></script>
 </body>
 </html>
