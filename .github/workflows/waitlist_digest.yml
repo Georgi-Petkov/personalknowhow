@@ -9,45 +9,17 @@ jobs:
   digest:
     runs-on: ubuntu-latest
     steps:
-      - name: Query new signups (last 24h)
-        id: query
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - run: pip install requests
+
+      - name: Query D1 and send digest
         env:
           CF_API_TOKEN: ${{ secrets.CLOUDFLARE_D1_TOKEN }}
-        run: |
-          cat > query.json <<'EOF'
-          {"sql": "SELECT email, note, created_at FROM subscribers WHERE created_at > datetime('now', '-1 day') ORDER BY created_at DESC"}
-          EOF
-
-          curl -s -X POST \
-            "https://api.cloudflare.com/client/v4/accounts/716dcf9e5806cc9dbb777e0b80bb236d/d1/database/934afff4-c462-41b0-91ff-2232473c5286/query" \
-            -H "Authorization: Bearer $CF_API_TOKEN" \
-            -H "Content-Type: application/json" \
-            --data @query.json > response.json
-
-          if ! jq -e '.success' response.json > /dev/null; then
-            echo "D1 query failed:"
-            cat response.json
-            exit 1
-          fi
-
-          COUNT=$(jq '.result[0].results | length' response.json)
-          echo "count=$COUNT" >> "$GITHUB_OUTPUT"
-
-          {
-            echo 'body<<EOF'
-            jq -r '.result[0].results[] | "- \(.email)  (\(.created_at))" + (if .note != "" and .note != null then "\n  \(.note)" else "" end)' response.json
-            echo 'EOF'
-          } >> "$GITHUB_OUTPUT"
-
-      - name: Send digest email
-        if: steps.query.outputs.count != '0'
-        uses: dawidd6/action-send-mail@v3
-        with:
-          server_address: smtp.gmail.com
-          server_port: 465
-          username: ${{ secrets.GMAIL_USER }}
-          password: ${{ secrets.GMAIL_APP_PASSWORD }}
-          subject: "PersonalKnowHow: ${{ steps.query.outputs.count }} new waitlist signup(s)"
-          to: ${{ secrets.GMAIL_USER }}
-          from: PersonalKnowHow Waitlist
-          body: ${{ steps.query.outputs.body }}
+          GMAIL_SENDER: ${{ secrets.GMAIL_USER }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+        run: python .github/scripts/waitlist_digest.py
