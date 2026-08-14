@@ -237,6 +237,12 @@ h1 {
 .section.alt { background: var(--bg-secondary); }
 .section.example .wrap { padding-top: 0; }
 
+.example-label {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  margin: 24px 0 12px;
+}
+
 h2 {
   font-size: 1.6rem;
   margin: 0 0 20px;
