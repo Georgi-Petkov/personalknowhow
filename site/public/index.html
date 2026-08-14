@@ -139,29 +139,29 @@ a course you finished, work you actually did. Not invented phrasing.</code></pre
         <li>
           <span class="step-num">1</span>
           <div>
-            <h3>Ingest</h3>
-            <p>Source-specific scripts pull from LinkedIn's official API, GitHub, DataCamp, edX, Gmail, and sibling project repos into one common schema.</p>
+            <h3>Collect</h3>
+            <p>Pulls your history from LinkedIn, GitHub, DataCamp, edX, Gmail, and your own project repos — automatically, into one place.</p>
           </div>
         </li>
         <li>
           <span class="step-num">2</span>
           <div>
-            <h3>Embed</h3>
-            <p>Every entry is embedded with a real model (bge-base-en-v1.5) via Cloudflare Workers AI — not keyword tags, actual semantic vectors.</p>
+            <h3>Understand</h3>
+            <p>Understands what you've actually done, not just the words you used — recognizes "built data pipelines" and "ETL experience" as related, even if they're never phrased the same way. Real AI embeddings, not keyword tags.</p>
           </div>
         </li>
         <li>
           <span class="step-num">3</span>
           <div>
-            <h3>Graph</h3>
-            <p>Entries and their relationships get extracted into a single knowledge graph, deduplicated and idempotent to rebuild.</p>
+            <h3>Connect</h3>
+            <p>Links everything into one graph, with duplicates removed — safe to rebuild any time you add more.</p>
           </div>
         </li>
         <li>
           <span class="step-num">4</span>
           <div>
-            <h3>Query</h3>
-            <p>Two stateless Cloudflare Workers expose the graph over MCP — semantic search ranked by cosine similarity, no keyword matching.</p>
+            <h3>Answer</h3>
+            <p>Your AI can ask it anything, anytime, and get back real answers — ranked by what's actually relevant, not just matching words.</p>
           </div>
         </li>
       </ol>
