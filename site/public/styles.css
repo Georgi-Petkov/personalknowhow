@@ -1,0 +1,203 @@
+:root {
+  --bg: #ffffff;
+  --bg-alt: #f5f6f8;
+  --text: #16181d;
+  --text-dim: #52565f;
+  --border: #e2e4e9;
+  --accent: #3457d5;
+  --accent-text: #ffffff;
+  --code-bg: #f0f1f4;
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0e0f12;
+    --bg-alt: #16181d;
+    --text: #ecedf0;
+    --text-dim: #a3a7b2;
+    --border: #2a2d34;
+    --accent: #7c9dff;
+    --accent-text: #0e0f12;
+    --code-bg: #1a1c22;
+  }
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.55;
+}
+
+.wrap {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+a { color: var(--accent); }
+
+.hero {
+  padding: 96px 0 64px;
+  text-align: center;
+}
+
+.eyebrow {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  margin-bottom: 16px;
+}
+
+h1 {
+  font-size: clamp(2rem, 5vw, 3rem);
+  line-height: 1.15;
+  margin: 0 0 24px;
+}
+
+.lede {
+  font-size: 1.15rem;
+  color: var(--text-dim);
+  max-width: 620px;
+  margin: 0 auto 32px;
+}
+
+.cta-row {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.btn {
+  display: inline-block;
+  padding: 12px 22px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  color: var(--text);
+  text-decoration: none;
+  font-weight: 500;
+  transition: transform 0.1s ease;
+}
+
+.btn:hover { transform: translateY(-1px); }
+
+.btn-primary {
+  background: var(--accent);
+  color: var(--accent-text);
+  border-color: var(--accent);
+}
+
+.section { padding: 56px 0; }
+.section.alt { background: var(--bg-alt); }
+
+h2 {
+  font-size: 1.6rem;
+  margin: 0 0 20px;
+}
+
+h3 { font-size: 1.1rem; margin: 0 0 6px; }
+
+p { color: var(--text-dim); }
+
+code {
+  font-family: var(--mono);
+  background: var(--code-bg);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.9em;
+  color: var(--text);
+}
+
+pre {
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 18px;
+  overflow-x: auto;
+}
+
+pre code {
+  background: none;
+  padding: 0;
+  color: var(--text);
+}
+
+.steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 28px;
+}
+
+.steps li {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.step-num {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--accent-text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.waitlist form {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 20px;
+}
+
+.waitlist input[type="email"],
+.waitlist input[type="text"] {
+  flex: 1 1 200px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 1rem;
+  font-family: var(--font);
+}
+
+.waitlist button {
+  cursor: pointer;
+  font-size: 1rem;
+  font-family: var(--font);
+}
+
+#waitlist-status {
+  margin-top: 12px;
+  min-height: 1.2em;
+  font-size: 0.9rem;
+}
+
+footer {
+  padding: 40px 0 60px;
+  text-align: center;
+  border-top: 1px solid var(--border);
+  margin-top: 40px;
+}
+
+footer p { color: var(--text-dim); font-size: 0.9rem; }
+
+@media (max-width: 520px) {
+  .hero { padding: 64px 0 40px; }
+  .waitlist form { flex-direction: column; }
+}

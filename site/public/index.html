@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>PersonalKnowHow — a queryable knowledge graph of what you actually know</title>
+<meta name="description" content="Turns your scattered learning and work history into a knowledge graph, served over real MCP servers with semantic search — so 'do I know X' gets answered with evidence, not a guess." />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🧠</text></svg>" />
+<link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <p class="eyebrow">Evidence-based knowledge graph · Real MCP servers</p>
+    <h1>Stop guessing what you know.<br>Query it instead.</h1>
+    <p class="lede">
+      PersonalKnowHow turns a scattered learning and work history — LinkedIn, GitHub, course
+      platforms, project repos — into a unified knowledge graph, served over real
+      <a href="https://modelcontextprotocol.io/" target="_blank" rel="noopener">MCP</a> servers with
+      semantic search. Ask "do I have Django experience?" and get back actual evidence with a
+      similarity score, not a keyword match.
+    </p>
+    <div class="cta-row">
+      <a class="btn btn-primary" href="https://github.com/Georgi-Petkov/personalknowhow" target="_blank" rel="noopener">View the code on GitHub</a>
+      <a class="btn" href="#demo">Try the live demo</a>
+    </div>
+  </div>
+</header>
+
+<main>
+
+  <section class="section">
+    <div class="wrap">
+      <h2>Course lists and resumes are a weak signal</h2>
+      <p>
+        A finished course or a keyword on a resume tells you almost nothing about what someone
+        can actually do. This project builds a graph from primary sources instead — a project's
+        real README, an actual GitHub commit history, a genuine course completion, a peer
+        endorsement — embeds every entry with a real model, and exposes it as a queryable tool.
+        The answer to "do you know X" becomes a ranked list of real evidence, each with a
+        similarity score attached, not a self-reported claim.
+      </p>
+    </div>
+  </section>
+
+  <section class="section alt">
+    <div class="wrap">
+      <h2>How it works</h2>
+      <ol class="steps">
+        <li>
+          <span class="step-num">1</span>
+          <div>
+            <h3>Ingest</h3>
+            <p>Source-specific scripts pull from LinkedIn's official API, GitHub, DataCamp, edX, Gmail, and sibling project repos into one common schema.</p>
+          </div>
+        </li>
+        <li>
+          <span class="step-num">2</span>
+          <div>
+            <h3>Embed</h3>
+            <p>Every entry is embedded with a real model (bge-base-en-v1.5) via Cloudflare Workers AI — not keyword tags, actual semantic vectors.</p>
+          </div>
+        </li>
+        <li>
+          <span class="step-num">3</span>
+          <div>
+            <h3>Graph</h3>
+            <p>Entries and their relationships get extracted into a single knowledge graph, deduplicated and idempotent to rebuild.</p>
+          </div>
+        </li>
+        <li>
+          <span class="step-num">4</span>
+          <div>
+            <h3>Query</h3>
+            <p>Two stateless Cloudflare Workers expose the graph over MCP — semantic search ranked by cosine similarity, no keyword matching.</p>
+          </div>
+        </li>
+      </ol>
+    </div>
+  </section>
+
+  <section class="section" id="demo">
+    <div class="wrap">
+      <h2>Try the live demo</h2>
+      <p>
+        <code>https://personalknowhow-demo.kxtwrdzt6g.workers.dev/mcp</code> is a real, deployed
+        MCP server — but it's not a webpage. Opening that URL in a browser sends a plain
+        <code>GET</code>, and MCP only speaks <code>POST</code> with JSON-RPC framing, so you'll
+        just see a bare error. That's expected — it means you're looking at it the wrong way.
+      </p>
+      <p>The real way to use it: add it as an MCP connector in Claude Desktop.</p>
+      <pre><code>{
+  "mcpServers": {
+    "personalknowhow-demo": {
+      "command": "npx",
+      "args": ["mcp-remote", "https://personalknowhow-demo.kxtwrdzt6g.workers.dev/mcp"]
+    }
+  }
+}</code></pre>
+      <p>Restart Claude Desktop, then ask it to check whether "you" have experience with any
+      skill — Claude calls the <code>query_knowhow</code> tool over MCP and returns
+      semantically-matched evidence with similarity scores, no auth required.</p>
+      <p>Prefer a quick terminal check instead of a full MCP client?</p>
+      <pre><code>curl -s https://personalknowhow-demo.kxtwrdzt6g.workers.dev/mcp \
+  -X POST -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}'</code></pre>
+      <p>A <code>200</code> with a JSON-RPC response back confirms it's live.</p>
+    </div>
+  </section>
+
+  <section class="section alt">
+    <div class="wrap">
+      <h2>Privacy by construction, not by promise</h2>
+      <p>
+        The public demo above is backed by a fail-closed allowlist — only explicitly listed
+        categories (courses, projects, certifications, education, endorsements, positions,
+        recommendations, articles) are ever exported to it. A new data category is excluded by
+        default until someone deliberately adds it. Anything more sensitive — job applications,
+        career interests — lives only in a separate, bearer-token-gated server with no shared
+        code path to the public one, and is never committed to the public repo at all.
+      </p>
+    </div>
+  </section>
+
+  <section class="section waitlist" id="waitlist">
+    <div class="wrap">
+      <h2>Want your own?</h2>
+      <p>
+        Right now this is a personal project you can fork and self-host. We're gauging interest
+        in a hosted version — bring your own LinkedIn/GitHub, get your own graph and MCP server,
+        no setup required. No promises on timeline or feasibility yet — if that's something
+        you'd actually use, tell us.
+      </p>
+      <form id="waitlist-form" novalidate>
+        <input type="email" name="email" placeholder="you@example.com" required aria-label="Email address" />
+        <input type="text" name="note" placeholder="What would you use it for? (optional)" aria-label="What would you use it for" maxlength="500" />
+        <button type="submit" class="btn btn-primary">Join the waitlist</button>
+      </form>
+      <p id="waitlist-status" role="status" aria-live="polite"></p>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <p><a href="https://github.com/Georgi-Petkov/personalknowhow" target="_blank" rel="noopener">github.com/Georgi-Petkov/personalknowhow</a></p>
+  </div>
+</footer>
+
+<script src="/waitlist.js"></script>
+</body>
+</html>

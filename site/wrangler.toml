@@ -1,0 +1,17 @@
+name = "personalknowhow-site"
+main = "src/index.ts"
+compatibility_date = "2026-08-14"
+workers_dev = false
+
+[assets]
+directory = "./public"
+binding = "ASSETS"
+run_worker_first = ["/api/*"]
+
+[[kv_namespaces]]
+binding = "WAITLIST"
+id = "879064ff24974763b1496c1269c63925"
+
+[[routes]]
+pattern = "personalknowhow.com"
+custom_domain = true
