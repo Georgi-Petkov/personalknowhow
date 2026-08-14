@@ -67,7 +67,9 @@ export default {
       if (invite.deleted_at) {
         return Response.json({ status: "deleted" });
       }
-      if (invite.mcp_url && invite.mcp_token) {
+      if (invite.mcp_url) {
+        // mcp_token is optional -- a server deployed unauthenticated for testing
+        // (matching the public demo's pattern) has none, and that's fine.
         return Response.json({ status: "ready", mcp_url: invite.mcp_url, mcp_token: invite.mcp_token });
       }
       if (invite.used_at) {

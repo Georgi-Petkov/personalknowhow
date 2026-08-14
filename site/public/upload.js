@@ -15,16 +15,22 @@ function showView(name) {
 }
 
 function renderReady(mcpUrl, mcpToken) {
-  const config = {
-    mcpServers: {
-      personalknowhow: {
-        command: "npx",
-        args: ["mcp-remote", mcpUrl, "--header", "Authorization:${AUTH_HEADER}"],
-        env: { AUTH_HEADER: `Bearer ${mcpToken}` },
-      },
-    },
-  };
+  document.getElementById("mcp-url-plain").textContent = mcpUrl;
+
+  const args = ["mcp-remote", mcpUrl];
+  const server = { command: "npx", args };
+  if (mcpToken) {
+    args.push("--header", "Authorization:${AUTH_HEADER}");
+    server.env = { AUTH_HEADER: `Bearer ${mcpToken}` };
+  }
+  const config = { mcpServers: { personalknowhow: server } };
   document.getElementById("mcp-config").textContent = JSON.stringify(config, null, 2);
+
+  // The Claude.ai web custom-connector form only takes a URL, no header field --
+  // it genuinely can't connect to a token-gated server, so don't show it as an option.
+  document.getElementById("mcp-web-section").hidden = !!mcpToken;
+  document.getElementById("mcp-web-unavailable-note").hidden = !mcpToken;
+  document.getElementById("mcp-auth-note").hidden = !!mcpToken;
 }
 
 async function refreshStatus() {

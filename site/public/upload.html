@@ -41,11 +41,29 @@
 
       <div id="ready-view" hidden>
         <h2>Your MCP server is ready</h2>
-        <p>Connect it to Claude Desktop by adding this to your <code>claude_desktop_config.json</code>:</p>
+
+        <div id="mcp-web-section">
+          <p class="example-label">In Claude.ai (web)</p>
+          <p>Settings → Connectors → Add custom connector, then paste this URL:</p>
+          <pre><code id="mcp-url-plain"></code></pre>
+        </div>
+        <p id="mcp-web-unavailable-note" hidden>
+          This server requires a login token, which Claude.ai's web custom-connector form has
+          no field for — use Claude Desktop below instead.
+        </p>
+
+        <p class="example-label">In Claude Desktop</p>
+        <p>Add this to your <code>claude_desktop_config.json</code>, then restart Claude Desktop:</p>
         <pre><code id="mcp-config"></code></pre>
+
+        <p id="mcp-auth-note" hidden>
+          No login or token needed to connect — anyone with this URL can query it, so don't
+          share it beyond who you intend to use it.
+        </p>
+
         <p>
-          Then restart Claude Desktop. It'll be able to check your real, uploaded background
-          against anything you ask it — job postings, skills, "do I have experience with X."
+          Once connected, ask it anything about your real, uploaded background — job postings,
+          skills, "do I have experience with X."
         </p>
         <p>
           <button id="delete-button" class="btn">Delete my data</button>
