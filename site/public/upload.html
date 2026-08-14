@@ -20,16 +20,47 @@
 <main>
   <section class="section">
     <div class="wrap" style="max-width: 560px;">
-      <h2>Upload your LinkedIn export</h2>
-      <p>
-        Upload the zip file from LinkedIn's "Request my data" export. It's sent straight to
-        private storage — nothing is processed automatically yet; you'll hear back by email
-        once it's done.
-      </p>
-      <form id="upload-form" novalidate>
-        <input type="file" name="file" accept=".zip" required aria-label="LinkedIn export zip file" />
-        <button type="submit" class="btn btn-primary">Upload</button>
-      </form>
+
+      <div id="upload-view" hidden>
+        <h2>Upload your LinkedIn export</h2>
+        <p>
+          Upload the zip file from LinkedIn's "Request my data" export. It's sent straight to
+          private storage — nothing is processed automatically yet; you'll hear back once it's
+          done.
+        </p>
+        <form id="upload-form" novalidate>
+          <input type="file" name="file" accept=".zip" required aria-label="LinkedIn export zip file" />
+          <button type="submit" class="btn btn-primary">Upload</button>
+        </form>
+      </div>
+
+      <div id="processing-view" hidden>
+        <h2>Processing</h2>
+        <p>Received — I'll be in touch once it's ready. Check back on this same link.</p>
+      </div>
+
+      <div id="ready-view" hidden>
+        <h2>Your MCP server is ready</h2>
+        <p>Connect it to Claude Desktop by adding this to your <code>claude_desktop_config.json</code>:</p>
+        <pre><code id="mcp-config"></code></pre>
+        <p>
+          Then restart Claude Desktop. It'll be able to check your real, uploaded background
+          against anything you ask it — job postings, skills, "do I have experience with X."
+        </p>
+        <p>
+          <button id="delete-button" class="btn">Delete my data</button>
+        </p>
+      </div>
+
+      <div id="deleted-view" hidden>
+        <h2>Deleted</h2>
+        <p>Your data has been removed.</p>
+      </div>
+
+      <div id="error-view" hidden>
+        <p id="error-text"></p>
+      </div>
+
       <p id="upload-status" role="status" aria-live="polite"></p>
     </div>
   </section>

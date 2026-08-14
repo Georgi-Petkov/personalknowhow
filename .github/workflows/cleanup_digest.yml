@@ -1,0 +1,25 @@
+name: Cleanup Digest
+
+on:
+  schedule:
+    - cron: "0 8 * * 1"
+  workflow_dispatch:
+
+jobs:
+  digest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - run: pip install requests
+
+      - name: Query D1 and send cleanup digest
+        env:
+          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_D1_TOKEN }}
+          GMAIL_SENDER: ${{ secrets.GMAIL_USER }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+        run: python .github/scripts/cleanup_digest.py
