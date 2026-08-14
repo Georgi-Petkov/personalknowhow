@@ -5,10 +5,43 @@ completion emails, sibling project repos — into a unified knowledge graph, ser
 real, deployed [MCP](https://modelcontextprotocol.io/) servers so any MCP-aware client (Claude
 Desktop, etc.) can query it with semantic search instead of keyword matching.
 
-**Live public demo:** `https://personalknowhow-demo.kxtwrdzt6g.workers.dev/mcp` — no auth,
-query with `query_knowhow("django")` or similar and get back semantically-matched evidence
-(courses, projects, certifications) with similarity scores. Add it as an MCP connector in
-Claude Desktop to try it directly.
+## Try the live demo
+
+`https://personalknowhow-demo.kxtwrdzt6g.workers.dev/mcp` is a real, deployed MCP server — but
+**it's not a webpage.** Opening that URL in a browser sends a plain `GET`, and MCP servers only
+speak `POST` with JSON-RPC framing, so you'll just see a bare `{"error":{"message":"Method not
+allowed."}}`. That's expected, not broken — it means you're looking at it the wrong way.
+
+The actual way to use it is as an MCP connector. In Claude Desktop, edit
+`claude_desktop_config.json` ([config file location](https://modelcontextprotocol.io/quickstart/user)):
+
+```json
+{
+  "mcpServers": {
+    "personalknowhow-demo": {
+      "command": "npx",
+      "args": ["mcp-remote", "https://personalknowhow-demo.kxtwrdzt6g.workers.dev/mcp"]
+    }
+  }
+}
+```
+
+Restart Claude Desktop, then ask something like *"use personalknowhow-demo to check if I have
+Django experience"* — Claude calls the `query_knowhow` tool over MCP and gets back
+semantically-matched evidence (courses, projects, certifications) with similarity scores, no
+auth required.
+
+If you just want to confirm the server is alive without setting up a client:
+
+```bash
+curl -s https://personalknowhow-demo.kxtwrdzt6g.workers.dev/mcp \
+  -X POST -H "Content-Type: application/json" -H "Accept: application/json, text/event-stream" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}'
+```
+
+A `200` with a JSON-RPC response back confirms it's live — the `Accept` header above is required;
+without it the server correctly returns `406 Not Acceptable`, which is a different, also-expected
+error from the browser-`GET` one above.
 
 ---
 
