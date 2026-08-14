@@ -1,15 +1,9 @@
 export interface Env {
   ASSETS: Fetcher;
-  WAITLIST: KVNamespace;
+  DB: D1Database;
 }
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-interface WaitlistEntry {
-  email: string;
-  note: string;
-  timestamp: string;
-}
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
@@ -30,8 +24,9 @@ export default {
         return Response.json({ error: "Enter a valid email address." }, { status: 400 });
       }
 
-      const entry: WaitlistEntry = { email, note, timestamp: new Date().toISOString() };
-      await env.WAITLIST.put(email, JSON.stringify(entry));
+      await env.DB.prepare(
+        "INSERT OR IGNORE INTO subscribers (email, note, created_at) VALUES (?, ?, ?)"
+      ).bind(email, note, new Date().toISOString()).run();
 
       return Response.json({ ok: true });
     }

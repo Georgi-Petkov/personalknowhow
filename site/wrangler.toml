@@ -8,9 +8,10 @@ directory = "./public"
 binding = "ASSETS"
 run_worker_first = ["/api/*"]
 
-[[kv_namespaces]]
-binding = "WAITLIST"
-id = "879064ff24974763b1496c1269c63925"
+[[d1_databases]]
+binding = "DB"
+database_name = "personalknowhow-waitlist"
+database_id = "934afff4-c462-41b0-91ff-2232473c5286"
 
 [[routes]]
 pattern = "personalknowhow.com"
