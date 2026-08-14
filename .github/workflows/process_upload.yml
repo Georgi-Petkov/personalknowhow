@@ -33,17 +33,29 @@ jobs:
           CLOUDFLARE_R2_AI_TOKEN: ${{ secrets.CLOUDFLARE_R2_AI_TOKEN }}
           UPLOAD_KEY: ${{ inputs.upload_key }}
         run: |
-          mkdir -p "data/incoming/extracted/linkedin_${{ inputs.customer_label }}"
+          DEST="data/incoming/extracted/linkedin_${{ inputs.customer_label }}"
+          mkdir -p "$DEST"
           curl -sf -o /tmp/upload.zip \
             -H "Authorization: Bearer $CLOUDFLARE_R2_AI_TOKEN" \
             "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/r2/buckets/personalknowhow-storage/objects/$UPLOAD_KEY"
-          unzip -o /tmp/upload.zip -d "data/incoming/extracted/linkedin_${{ inputs.customer_label }}"
+          unzip -o /tmp/upload.zip -d "$DEST"
+
+          # LinkedIn's zip layout varies -- CSVs can be at the top level, or one
+          # level deeper inside a nested folder. Find wherever Certifications.csv
+          # actually landed, ignoring macOS metadata junk, rather than assuming.
+          CSV_DIR=$(find "$DEST" -name "Certifications.csv" -not -path "*/__MACOSX/*" -print -quit | xargs -r dirname)
+          if [ -z "$CSV_DIR" ]; then
+            echo "::error::Certifications.csv not found anywhere under $DEST"
+            exit 1
+          fi
+          echo "CSV_DIR=$CSV_DIR" >> "$GITHUB_ENV"
+          echo "Resolved CSV directory: $CSV_DIR"
 
       # ── Run the existing, unmodified pipeline ─────────────────────────────
       - name: Run LinkedIn ingest
         run: |
           python ingest/linkedin_ingest.py \
-            --extract-dir "data/incoming/extracted/linkedin_${{ inputs.customer_label }}" \
+            --extract-dir "$CSV_DIR" \
             --json-summary
 
       - name: Merge corpus
