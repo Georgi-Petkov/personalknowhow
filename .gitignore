@@ -36,13 +36,6 @@ cv/
 .playwright-mcp/
 .claude/
 
-# Retired/junk — pending physical deletion, excluded regardless in the meantime
-connector/
-de_search.yml
-logs/dbt.log
-Job_notes.txt
-corpus.bak.20260810_072126/
-
 # PII documents
 *.pdf
 
