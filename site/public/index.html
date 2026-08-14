@@ -35,7 +35,7 @@
       A static document caps what your AI can know about you. PersonalKnowHow builds a
       queryable knowledge graph instead — your GitHub commits, course completions, and
       project history, structured as evidence. Ask "do I have Django experience?" and get
-      back real proof with a similarity score, not a claim typed into a text box.
+      back real proof, not a claim typed into a text box.
     </p>
     <div class="cta-row">
       <a class="btn btn-primary" href="#waitlist">Unlock Your AI Integration</a>
@@ -106,29 +106,29 @@
 
   <section class="section example">
     <div class="wrap">
-      <pre><code>Query: "Do I have experience with distributed systems?"
+      <p class="example-label">Setup</p>
+      <p>
+        Connect your GitHub, LinkedIn, and courses once. PersonalKnowHow builds your
+        knowledge graph and connects it to your AI — Claude, or any MCP-compatible assistant.
+      </p>
 
-Evidence returned:
-→ 0.91  GitHub — kafka-consumer-pool (47 commits, 2023–2024)
-→ 0.84  DataCamp — "Distributed Computing with PySpark" (completed 2024-03)
-→ 0.79  LinkedIn — Endorsement: "Scaled our event pipeline" (colleague, 2023)
-
-Not a keyword match. Not self-reported. Ranked by semantic similarity to real
-provenance-tagged evidence.</code></pre>
-
-      <p class="example-label">Or point it at a real job posting:</p>
+      <p class="example-label">Usage — match against a job posting</p>
       <pre><code>"Would I be a good candidate for this job? [link to a real posting]"
 
-Reads the posting itself, pulls out the requirements, checks each one
-against your evidence — no summarizing it yourself first:
+It reads the posting itself and checks it against your real evidence:
 
-✓ Snowflake pipelines — real production project, 99% data accuracy
+✓ Snowflake pipelines — real production project
 ✓ dbt — course completion + hands-on project
 ✓ GDPR-compliant data handling — real project, not a course
 ⚠ Airflow — course completion only, no production use yet
 
-One link in, a grounded verdict out — gap and all, not a guess about
-what "senior" usually implies.</code></pre>
+Just the link. No summarizing the posting yourself first.</code></pre>
+
+      <p class="example-label">Usage — tailor your CV</p>
+      <pre><code>"Tailor my CV for this job."
+
+Every bullet traces back to something real — a project you shipped,
+a course you finished, work you actually did. Not invented phrasing.</code></pre>
     </div>
   </section>
 
