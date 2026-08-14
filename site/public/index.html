@@ -117,16 +117,17 @@ Not a keyword match. Not self-reported. Ranked by semantic similarity to real
 provenance-tagged evidence.</code></pre>
 
       <p class="example-label">Or point it at a real job posting:</p>
-      <pre><code>"Would I be a good candidate for this Senior Data Engineer posting?"
-[posting requires: Snowflake, Airflow, dbt, GDPR-compliant pipelines]
+      <pre><code>"Would I be a good candidate for this job? [link to a real posting]"
 
-Match assessment:
+Reads the posting itself, pulls out the requirements, checks each one
+against your evidence — no summarizing it yourself first:
+
 ✓ Snowflake pipelines — real production project, 99% data accuracy
 ✓ dbt — course completion + hands-on project
 ✓ GDPR-compliant data handling — real project, not a course
 ⚠ Airflow — course completion only, no production use yet
 
-Grounded in your actual evidence, gap and all — not a guess about
+One link in, a grounded verdict out — gap and all, not a guess about
 what "senior" usually implies.</code></pre>
     </div>
   </section>
