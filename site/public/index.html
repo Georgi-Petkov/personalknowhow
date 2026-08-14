@@ -53,6 +53,19 @@
         <path class="diagram-arrow" d="M340,72 L340,148" fill="none" marker-end="url(#arrowhead)"></path>
         <path class="diagram-arrow" d="M550,72 L342,148" fill="none" marker-end="url(#arrowhead)"></path>
 
+        <circle class="diagram-flow-dot" r="5">
+          <animateMotion dur="2.4s" repeatCount="indefinite" path="M130,72 L338,148"></animateMotion>
+          <animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.15;0.85;1" dur="2.4s" repeatCount="indefinite"></animate>
+        </circle>
+        <circle class="diagram-flow-dot" r="5">
+          <animateMotion dur="2.4s" repeatCount="indefinite" begin="0.3s" path="M340,72 L340,148"></animateMotion>
+          <animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.15;0.85;1" dur="2.4s" repeatCount="indefinite" begin="0.3s"></animate>
+        </circle>
+        <circle class="diagram-flow-dot" r="5">
+          <animateMotion dur="2.4s" repeatCount="indefinite" begin="0.6s" path="M550,72 L342,148"></animateMotion>
+          <animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.15;0.85;1" dur="2.4s" repeatCount="indefinite" begin="0.6s"></animate>
+        </circle>
+
         <g class="diagram-source">
           <rect x="40" y="20" width="180" height="50" rx="10"></rect>
           <text x="130" y="50" text-anchor="middle">LinkedIn</text>
@@ -74,9 +87,14 @@
 
         <path class="diagram-arrow" d="M340,222 L340,288" fill="none" marker-end="url(#arrowhead)"></path>
 
+        <circle class="diagram-flow-dot" r="5">
+          <animateMotion dur="1.6s" repeatCount="indefinite" begin="1s" path="M340,222 L340,288"></animateMotion>
+          <animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.15;0.85;1" dur="1.6s" repeatCount="indefinite" begin="1s"></animate>
+        </circle>
+
         <g class="diagram-output">
           <rect x="190" y="290" width="300" height="70" rx="10"></rect>
-          <text x="340" y="320" text-anchor="middle" class="diagram-title">AI-tailored CV, per job</text>
+          <text x="340" y="320" text-anchor="middle" class="diagram-title">AI-tailored CV, per job — in seconds</text>
           <text x="340" y="342" text-anchor="middle" class="diagram-subtitle">Grounded in real evidence, not guesses</text>
         </g>
       </svg>
