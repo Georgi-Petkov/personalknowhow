@@ -1,0 +1,10 @@
+name = "personalknowhow-private"
+main = "src/index.ts"
+compatibility_date = "2026-08-08"
+compatibility_flags = ["nodejs_compat"]
+
+[ai]
+binding = "AI"
+remote = true
+
+# PRIVATE_MCP_TOKEN is set via `wrangler secret put PRIVATE_MCP_TOKEN` -- never here.

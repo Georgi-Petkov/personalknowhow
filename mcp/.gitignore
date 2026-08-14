@@ -1,0 +1,5 @@
+node_modules/
+.wrangler/
+*.json.bak
+public_entries.json
+public_embeddings.json

@@ -1,0 +1,92 @@
+name: Build Knowledge Graph
+
+on:
+  push:
+    paths:
+      - "data/incoming/**"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      # ── Unzip any export zips dropped in data/incoming/ ──────────────────
+      - name: Unzip incoming exports
+        run: |
+          shopt -s nullglob
+          for f in data/incoming/*.zip; do
+            base=$(basename "$f" .zip)
+            dest="data/incoming/extracted/$base"
+            echo "Unzipping $f → $dest"
+            mkdir -p "$dest"
+            unzip -o "$f" -d "$dest"
+          done
+
+      # ── Source-specific ingest scripts ───────────────────────────────────
+      - name: Run LinkedIn ingest
+        run: |
+          if compgen -G "data/incoming/extracted/linkedin*" > /dev/null 2>&1; then
+            if [ -f ingest/linkedin_ingest.py ]; then
+              python ingest/linkedin_ingest.py
+            else
+              echo "linkedin_ingest.py not found — skipping"
+            fi
+          else
+            echo "No LinkedIn extract found — skipping"
+          fi
+
+      - name: Run GitHub ingest
+        if: ${{ secrets.GITHUB_INGEST_TOKEN != '' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_INGEST_TOKEN }}
+        run: |
+          if [ -f ingest/github_ingest.py ]; then
+            python ingest/github_ingest.py
+          else
+            echo "github_ingest.py not found — skipping"
+          fi
+
+      - name: Run DataCamp ingest
+        run: |
+          if compgen -G "data/incoming/extracted/datacamp*" > /dev/null 2>&1; then
+            if [ -f ingest/datacamp_ingest.py ]; then
+              python ingest/datacamp_ingest.py
+            else
+              echo "datacamp_ingest.py not found — skipping"
+            fi
+          else
+            echo "No DataCamp extract found — skipping"
+          fi
+
+      # ── Merge / deduplicate corpus ────────────────────────────────────────
+      - name: Merge corpus
+        run: python ingest/merge.py
+
+      # ── Build knowledge graph ─────────────────────────────────────────────
+      - name: Build knowledge graph
+        run: python ingest/build_graph.py
+
+      # ── Commit updated graph.json back to repo ────────────────────────────
+      - name: Commit graph.json
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add graph.json corpus/
+          git diff --staged --quiet && echo "No changes to commit" && exit 0
+          git commit -m "chore: rebuild graph.json from incoming export [skip ci]"
+          git push

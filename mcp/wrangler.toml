@@ -1,0 +1,17 @@
+name = "personalknowhow-demo"
+main = "src/index.ts"
+compatibility_date = "2026-08-08"
+compatibility_flags = ["nodejs_compat"]
+
+[ai]
+binding = "AI"
+remote = true
+
+# The previous McpAgent-based deploy (2026-08-04/05) used a Durable Object
+# class "DemoCard" for stateful sessions. This rewrite uses the stateless
+# createMcpHandler instead, which needs no Durable Object at all -- this
+# migration explicitly deletes the now-unused class rather than leaving it
+# silently orphaned.
+[[migrations]]
+tag = "v2-remove-demo-card-do"
+deleted_classes = ["DemoCard"]

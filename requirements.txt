@@ -1,0 +1,17 @@
+# Core
+graphifyy
+pyyaml
+
+# Job posting language filtering (analyze_job_postings.py)
+langdetect
+
+# Video scoring
+youtube-transcript-api
+
+# Gmail sync
+google-api-python-client
+google-auth-httplib2
+google-auth-oauthlib
+
+# Job-fit agent (agent/job_fit_agent.py)
+anthropic

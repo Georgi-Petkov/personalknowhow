@@ -1,0 +1,55 @@
+# graphify build artifacts
+graphify-out/
+.graphify_*.json
+.graphify_python
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+.venv/
+venv/
+env/
+
+# macOS
+.DS_Store
+
+# Secrets / local config
+.env
+.env.*
+*.env
+.dev.vars
+
+# Node
+node_modules/
+.wrangler/
+
+# Personal data / generated corpus — never tracked, this is the whole point
+data/
+corpus/
+graph.json
+cv/
+
+# Local tool caches / session dumps
+.playwright-mcp/
+.claude/
+
+# Retired/junk — pending physical deletion, excluded regardless in the meantime
+connector/
+de_search.yml
+logs/dbt.log
+Job_notes.txt
+corpus.bak.20260810_072126/
+
+# PII documents
+*.pdf
+
+# Sensitive standalone docs — real salary figures, personal career strategy,
+# detailed session history. Revisit individually if a redacted public
+# version is ever wanted; excluded by default for now.
+JOB_MARKET_ANALYSIS.md
+linkedin/CONTENT_STRATEGY.md
+linkedin/POSTING_RULES.md
+CLAUDE.md

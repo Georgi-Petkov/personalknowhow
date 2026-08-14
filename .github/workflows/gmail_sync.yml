@@ -1,0 +1,51 @@
+name: Gmail Sync
+
+on:
+  schedule:
+    - cron: "0 6 * * *"   # daily at 06:00 UTC
+  workflow_dispatch:        # allow manual trigger from Actions tab
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      # ── Pull completion emails from Gmail ─────────────────────────────────
+      - name: Sync Gmail completions
+        env:
+          GMAIL_CLIENT_ID:     ${{ secrets.GMAIL_CLIENT_ID }}
+          GMAIL_CLIENT_SECRET: ${{ secrets.GMAIL_CLIENT_SECRET }}
+          GMAIL_REFRESH_TOKEN: ${{ secrets.GMAIL_REFRESH_TOKEN }}
+        run: python ingest/gmail_sync.py
+
+      # ── Merge / deduplicate corpus ────────────────────────────────────────
+      - name: Merge corpus
+        run: python ingest/merge.py
+
+      # ── Rebuild knowledge graph ───────────────────────────────────────────
+      - name: Build knowledge graph
+        run: python ingest/build_graph.py
+
+      # ── Commit updates back to repo ───────────────────────────────────────
+      - name: Commit updates
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add corpus/gmail/ data/last_gmail_check.txt graph.json
+          git diff --staged --quiet && echo "No new completions" && exit 0
+          git commit -m "chore: gmail sync — new completions + graph update [skip ci]"
+          git push

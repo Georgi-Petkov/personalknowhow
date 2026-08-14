@@ -1,0 +1,7 @@
+node_modules/
+.wrangler/
+*.json.bak
+.dev.vars
+private_entries.json
+private_embeddings.json
+URLs.txt
