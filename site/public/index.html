@@ -30,16 +30,56 @@
 <header class="hero">
   <div class="wrap">
     <p class="eyebrow">Evidence-based knowledge graph · Real MCP servers</p>
-    <h1>Your resume is a story.<br>This is the evidence.</h1>
+    <h1>Your CV is a static snapshot made for humans.<br>Unlock your AI's full potential.</h1>
     <p class="lede">
-      A resume tells a story about what you know. PersonalKnowHow builds a knowledge graph from
-      what actually happened — your GitHub commits, course completions, project history — and
-      lets you query it directly. Ask "do I have Django experience?" and get back real evidence
-      with a similarity score, not a claim.
+      A static document caps what your AI can know about you. PersonalKnowHow builds a
+      queryable knowledge graph instead — your GitHub commits, course completions, and
+      project history, structured as evidence. Ask "do I have Django experience?" and get
+      back real proof with a similarity score, not a claim typed into a text box.
     </p>
     <div class="cta-row">
-      <a class="btn btn-primary" href="https://github.com/Georgi-Petkov/personalknowhow" target="_blank" rel="noopener">View the code on GitHub</a>
+      <a class="btn btn-primary" href="#waitlist">Unlock Your AI Integration</a>
       <a class="btn" href="#demo">Try the live demo</a>
+    </div>
+    <div class="hero-diagram" aria-hidden="true">
+      <svg viewBox="0 0 680 380" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Diagram: LinkedIn, GitHub, and Courses feed into your knowledge graph, which produces an AI-tailored CV per job">
+        <defs>
+          <marker id="arrowhead" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
+            <path d="M0,0 L8,4 L0,8 Z" class="diagram-arrowhead-fill"></path>
+          </marker>
+        </defs>
+
+        <path class="diagram-arrow" d="M130,72 L338,148" fill="none" marker-end="url(#arrowhead)"></path>
+        <path class="diagram-arrow" d="M340,72 L340,148" fill="none" marker-end="url(#arrowhead)"></path>
+        <path class="diagram-arrow" d="M550,72 L342,148" fill="none" marker-end="url(#arrowhead)"></path>
+
+        <g class="diagram-source">
+          <rect x="40" y="20" width="180" height="50" rx="10"></rect>
+          <text x="130" y="50" text-anchor="middle">LinkedIn</text>
+        </g>
+        <g class="diagram-source">
+          <rect x="250" y="20" width="180" height="50" rx="10"></rect>
+          <text x="340" y="50" text-anchor="middle">GitHub</text>
+        </g>
+        <g class="diagram-source">
+          <rect x="460" y="20" width="180" height="50" rx="10"></rect>
+          <text x="550" y="50" text-anchor="middle">Courses</text>
+        </g>
+
+        <g class="diagram-graph">
+          <rect x="190" y="150" width="300" height="70" rx="10"></rect>
+          <text x="340" y="180" text-anchor="middle" class="diagram-title">Your knowledge graph</text>
+          <text x="340" y="202" text-anchor="middle" class="diagram-subtitle">Everything you've done, connected</text>
+        </g>
+
+        <path class="diagram-arrow" d="M340,222 L340,288" fill="none" marker-end="url(#arrowhead)"></path>
+
+        <g class="diagram-output">
+          <rect x="190" y="290" width="300" height="70" rx="10"></rect>
+          <text x="340" y="320" text-anchor="middle" class="diagram-title">AI-tailored CV, per job</text>
+          <text x="340" y="342" text-anchor="middle" class="diagram-subtitle">Grounded in real evidence, not guesses</text>
+        </g>
+      </svg>
     </div>
   </div>
 </header>

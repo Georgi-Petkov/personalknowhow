@@ -14,6 +14,11 @@
   --accent-dim: #264f78;
   --accent-text: #ffffff;
 
+  --diagram-source: #2dd4bf;
+  --diagram-source-bg: rgba(45, 212, 191, 0.12);
+  --diagram-output: #f0883e;
+  --diagram-output-bg: rgba(240, 136, 62, 0.12);
+
   --code-bg: #1e1e1e;
   --code-border: #3c3c3c;
 
@@ -35,6 +40,11 @@
   --accent-hover: #004182;
   --accent-dim: #e7f0fa;
   --accent-text: #ffffff;
+
+  --diagram-source: #0d9488;
+  --diagram-source-bg: rgba(13, 148, 136, 0.08);
+  --diagram-output: #b45309;
+  --diagram-output-bg: rgba(180, 83, 9, 0.08);
 
   --code-bg: #f6f8fa;
   --code-border: #d0d7de;
@@ -132,6 +142,71 @@ h1 {
   gap: 12px;
   justify-content: center;
   flex-wrap: wrap;
+}
+
+.hero-diagram {
+  max-width: 680px;
+  margin: 48px auto 0;
+}
+
+.hero-diagram svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.diagram-source rect {
+  fill: var(--diagram-source-bg);
+  stroke: var(--diagram-source);
+  stroke-width: 1.5;
+}
+
+.diagram-source text {
+  fill: var(--diagram-source);
+  font-family: var(--font);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.diagram-graph rect {
+  fill: var(--accent-dim);
+  stroke: var(--accent);
+  stroke-width: 1.5;
+}
+
+.diagram-graph .diagram-title {
+  fill: var(--accent);
+  font-family: var(--font);
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.diagram-output rect {
+  fill: var(--diagram-output-bg);
+  stroke: var(--diagram-output);
+  stroke-width: 1.5;
+}
+
+.diagram-output .diagram-title {
+  fill: var(--diagram-output);
+  font-family: var(--font);
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.diagram-subtitle {
+  fill: var(--text-secondary);
+  font-family: var(--font);
+  font-size: 12px;
+}
+
+.diagram-arrow {
+  stroke: var(--text-muted);
+  stroke-width: 1.5;
+}
+
+.diagram-arrowhead-fill {
+  fill: var(--text-muted);
 }
 
 .btn {
