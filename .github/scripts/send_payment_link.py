@@ -53,6 +53,10 @@ Your PersonalKnowHow upload was received. One step left -- complete payment to s
 (Test mode: Stripe isn't wired up yet, so this link simulates a completed payment instead of
 charging anything.)
 
+Once confirmed, processing starts right away -- within 24 hours you'll get another email with
+your personal MCP connection link and step-by-step instructions to add it to Claude (Claude.ai
+web or Claude Desktop).
+
 Georgi
 """
 

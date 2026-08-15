@@ -120,7 +120,10 @@ export default {
         ).bind(new Date().toISOString(), token).run();
       }
 
-      return page("Payment received", "Processing has started. You'll get another email with your MCP connection link once it's ready.");
+      return page(
+        "Payment received",
+        "Processing has started. Within 24 hours you'll get an email with your personal MCP connection link, plus instructions to add it: in Claude.ai (web), go to Settings &rarr; Connectors &rarr; Add custom connector and paste in the URL; in Claude Desktop, add the provided config snippet to claude_desktop_config.json and restart.",
+      );
     }
 
     if (url.pathname === "/api/delete-data" && request.method === "POST") {
