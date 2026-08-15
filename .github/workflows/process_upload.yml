@@ -41,11 +41,53 @@ jobs:
           CLOUDFLARE_R2_AI_TOKEN: ${{ secrets.CLOUDFLARE_R2_AI_TOKEN }}
           UPLOAD_KEY: ${{ inputs.upload_key }}
         run: |
-          DEST="data/incoming/extracted/linkedin_${{ inputs.customer_label }}"
-          mkdir -p "$DEST"
           curl -sf -o /tmp/upload.zip \
             -H "Authorization: Bearer $CLOUDFLARE_R2_AI_TOKEN" \
             "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/r2/buckets/personalknowhow-storage/objects/$UPLOAD_KEY"
+
+      # ── Validate BEFORE extracting anything -- reads the zip's central directory
+      #    only, never extracts a byte. Rejects zip bombs, path-traversal entries,
+      #    and anything that doesn't actually look like a LinkedIn export. ─────────
+      - name: Validate upload is a safe, real LinkedIn export
+        id: validate
+        run: |
+          if ! python ingest/validate_linkedin_export.py /tmp/upload.zip > /tmp/validate_result.txt 2>&1; then
+            echo "rejected=true" >> "$GITHUB_OUTPUT"
+            cat /tmp/validate_result.txt
+          else
+            echo "rejected=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Quarantine and record rejection
+        if: steps.validate.outputs.rejected == 'true'
+        env:
+          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_D1_TOKEN }}
+          CLOUDFLARE_R2_AI_TOKEN: ${{ secrets.CLOUDFLARE_R2_AI_TOKEN }}
+          UPLOAD_KEY: ${{ inputs.upload_key }}
+        run: |
+          REASON=$(cat /tmp/validate_result.txt | tr -d '\n' | cut -c1-500)
+          QUARANTINE_KEY="quarantine/$(basename "$UPLOAD_KEY")"
+          BASE="https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/r2/buckets/personalknowhow-storage/objects"
+
+          # Move, don't just flag -- the object no longer lives under raw/ where a
+          # retry could pick it up again.
+          curl -sf -X PUT -H "Authorization: Bearer $CLOUDFLARE_R2_AI_TOKEN" \
+            --data-binary "@/tmp/upload.zip" "$BASE/$QUARANTINE_KEY"
+          curl -sf -X DELETE -H "Authorization: Bearer $CLOUDFLARE_R2_AI_TOKEN" \
+            "$BASE/$UPLOAD_KEY"
+
+          curl -sf -X POST \
+            -H "Authorization: Bearer $CF_API_TOKEN" -H "Content-Type: application/json" \
+            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/d1/database/934afff4-c462-41b0-91ff-2232473c5286/query" \
+            -d "$(python3 -c "import json,sys; print(json.dumps({'sql': 'UPDATE upload_invites SET upload_rejected_reason = ? WHERE r2_upload_key = ?', 'params': [sys.argv[1], sys.argv[2]]}))" "$REASON" "$UPLOAD_KEY")"
+
+          echo "::error::Upload rejected and quarantined: $REASON"
+          exit 1
+
+      - name: Extract validated upload
+        run: |
+          DEST="data/incoming/extracted/linkedin_${{ inputs.customer_label }}"
+          mkdir -p "$DEST"
           unzip -o /tmp/upload.zip -d "$DEST"
 
           # LinkedIn's zip layout varies -- CSVs can be at the top level, or one
