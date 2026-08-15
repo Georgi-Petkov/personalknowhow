@@ -67,14 +67,16 @@ This link is single-use and tied to this email address.
 Georgi
 """
 
+SEND_AS = "PersonalKnowHow <office@personalknowhow.com>"
+
 msg = MIMEMultipart("alternative")
 msg["Subject"] = "Your PersonalKnowHow upload link"
-msg["From"] = GMAIL_SENDER
+msg["From"] = SEND_AS
 msg["To"] = email
 msg.attach(MIMEText(body, "plain", "utf-8"))
 
 with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
     smtp.login(GMAIL_SENDER, GMAIL_APP_PASSWORD)
-    smtp.sendmail(GMAIL_SENDER, [email], msg.as_string())
+    smtp.sendmail("office@personalknowhow.com", [email], msg.as_string())
 
 print(f"Invite sent to {email} (token {token})")
