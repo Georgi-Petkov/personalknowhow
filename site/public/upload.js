@@ -7,6 +7,7 @@ const views = {
   processing: document.getElementById("processing-view"),
   ready: document.getElementById("ready-view"),
   deleted: document.getElementById("deleted-view"),
+  rejected: document.getElementById("rejected-view"),
   error: document.getElementById("error-view"),
 };
 
@@ -62,6 +63,9 @@ async function refreshStatus() {
       showView("ready");
     } else if (data.status === "deleted") {
       showView("deleted");
+    } else if (data.status === "rejected") {
+      document.getElementById("rejected-reason").textContent = data.reason || "";
+      showView("rejected");
     }
   } catch {
     document.getElementById("error-text").textContent = "Network error. Reload to try again.";

@@ -12,7 +12,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Upload your data — PersonalKnowHow</title>
 <meta name="robots" content="noindex" />
-<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🧠</text></svg>" />
+<link rel="icon" href="/logo.png" />
 <link rel="stylesheet" href="/styles.css" />
 </head>
 <body>
@@ -32,6 +32,12 @@
           <input type="file" name="file" accept=".zip" required aria-label="LinkedIn export zip file" />
           <button type="submit" class="btn btn-primary">Upload</button>
         </form>
+      </div>
+
+      <div id="rejected-view" hidden>
+        <h2>Upload rejected</h2>
+        <p id="rejected-reason"></p>
+        <p>This wasn't processed. If you believe this is a mistake, reply to your invite email.</p>
       </div>
 
       <div id="pending-payment-view" hidden>

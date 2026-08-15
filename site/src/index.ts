@@ -2,13 +2,88 @@ export interface Env {
   ASSETS: Fetcher;
   DB: D1Database;
   STORAGE: R2Bucket;
+  STRIPE_WEBHOOK_SECRET: string;
 }
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+// Plain Web Crypto HMAC verification -- no Stripe SDK dependency needed since we
+// only ever verify Payment Link webhooks here, never call the Stripe API. Stripe's
+// scheme: header "t=<unix ts>,v1=<hex hmac>", signed payload is "<ts>.<raw body>".
+// Timestamp tolerance matches Stripe's own default (5 minutes) to reject replays.
+async function verifyStripeSignature(payload: string, header: string, secret: string): Promise<boolean> {
+  const parts = Object.fromEntries(header.split(",").map((kv) => kv.split("=")) as [string, string][]);
+  const timestamp = parts["t"];
+  const signature = parts["v1"];
+  if (!timestamp || !signature) return false;
+
+  const ageSeconds = Math.abs(Date.now() / 1000 - Number(timestamp));
+  if (!Number.isFinite(ageSeconds) || ageSeconds > 300) return false;
+
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  const sigBytes = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(`${timestamp}.${payload}`));
+  const expected = [...new Uint8Array(sigBytes)].map((b) => b.toString(16).padStart(2, "0")).join("");
+
+  if (expected.length !== signature.length) return false;
+  let diff = 0;
+  for (let i = 0; i < expected.length; i++) diff |= expected.charCodeAt(i) ^ signature.charCodeAt(i);
+  return diff === 0;
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
+
+    if (url.pathname === "/api/stripe-webhook" && request.method === "POST") {
+      const signatureHeader = request.headers.get("Stripe-Signature") ?? "";
+      const rawBody = await request.text();
+
+      if (!(await verifyStripeSignature(rawBody, signatureHeader, env.STRIPE_WEBHOOK_SECRET))) {
+        return new Response("Invalid signature", { status: 400 });
+      }
+
+      let event: { type?: string; data?: { object?: Record<string, unknown> } };
+      try {
+        event = JSON.parse(rawBody);
+      } catch {
+        return new Response("Invalid JSON", { status: 400 });
+      }
+
+      const obj = event.data?.object ?? {};
+
+      if (event.type === "checkout.session.completed") {
+        // client_reference_id carries our invite token -- set on the Payment Link
+        // as "?client_reference_id=<token>" when the payment-link email is sent.
+        const token = obj["client_reference_id"];
+        if (typeof token === "string" && token) {
+          await env.DB.prepare(
+            "UPDATE upload_invites SET payment_confirmed_at = ?, stripe_customer_id = ?, stripe_subscription_id = ?, subscription_status = 'active' " +
+            "WHERE token = ? AND payment_confirmed_at IS NULL"
+          ).bind(
+            new Date().toISOString(),
+            typeof obj["customer"] === "string" ? obj["customer"] : null,
+            typeof obj["subscription"] === "string" ? obj["subscription"] : null,
+            token,
+          ).run();
+        }
+      } else if (event.type === "customer.subscription.updated" || event.type === "customer.subscription.deleted") {
+        const subscriptionId = obj["id"];
+        const status = event.type === "customer.subscription.deleted" ? "canceled" : obj["status"];
+        if (typeof subscriptionId === "string" && subscriptionId) {
+          await env.DB.prepare(
+            "UPDATE upload_invites SET subscription_status = ? WHERE stripe_subscription_id = ?"
+          ).bind(typeof status === "string" ? status : "canceled", subscriptionId).run();
+        }
+      }
+
+      return Response.json({ received: true });
+    }
 
     if (url.pathname === "/api/upload" && request.method === "POST") {
       const token = request.headers.get("X-Upload-Token") ?? "";
@@ -34,6 +109,12 @@ export default {
       if (bytes.byteLength === 0) {
         return Response.json({ error: "The file arrived empty. Try again." }, { status: 400 });
       }
+      // A real LinkedIn export is a few MB at most. 50MB is generous headroom while
+      // still bounding worst-case processing cost / abuse of the pipeline.
+      const MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
+      if (bytes.byteLength > MAX_UPLOAD_BYTES) {
+        return Response.json({ error: "File is too large (max 50MB) for a LinkedIn export." }, { status: 400 });
+      }
 
       const uploadId = crypto.randomUUID();
       const r2Key = `raw/${uploadId}.zip`;
@@ -53,17 +134,21 @@ export default {
       }
 
       const invite = await env.DB.prepare(
-        "SELECT used_at, deleted_at, mcp_url, mcp_token, payment_confirmed_at FROM upload_invites WHERE token = ?"
+        "SELECT used_at, deleted_at, mcp_url, mcp_token, payment_confirmed_at, upload_rejected_reason FROM upload_invites WHERE token = ?"
       ).bind(token).first<{
         used_at: string | null;
         deleted_at: string | null;
         mcp_url: string | null;
         mcp_token: string | null;
         payment_confirmed_at: string | null;
+        upload_rejected_reason: string | null;
       }>();
 
       if (!invite) {
         return Response.json({ error: "Unknown link." }, { status: 404 });
+      }
+      if (invite.upload_rejected_reason) {
+        return Response.json({ status: "rejected", reason: invite.upload_rejected_reason });
       }
       if (invite.deleted_at) {
         return Response.json({ status: "deleted" });

@@ -12,14 +12,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>PersonalKnowHow — a queryable knowledge graph of what you actually know</title>
 <meta name="description" content="Turns your scattered learning and work history into a knowledge graph, served over real MCP servers with semantic search — so 'do I know X' gets answered with evidence, not a guess." />
-<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🧠</text></svg>" />
+<link rel="icon" href="/logo.png" />
 <link rel="stylesheet" href="/styles.css" />
 </head>
 <body>
 
 <nav class="site-nav">
   <div class="wrap nav-inner">
-    <span class="nav-brand">PersonalKnowHow</span>
+    <span class="nav-brand"><img src="/logo.png" alt="" />PersonalKnowHow</span>
     <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Switch between dark and light theme">
       <svg class="icon-sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
       <svg class="icon-moon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
@@ -42,9 +42,12 @@
       <a class="btn" href="#demo">Try the live demo</a>
     </div>
     <div class="hero-diagram" aria-hidden="true">
-      <svg viewBox="0 0 680 380" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Diagram: LinkedIn, GitHub, and Courses feed into your knowledge graph, which produces an AI-tailored CV per job">
+      <svg viewBox="0 0 680 480" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Diagram: LinkedIn, GitHub, and Courses feed into your knowledge graph. Your connected AI queries that graph back and forth in real time, then produces tailored CVs and grounded advice">
         <defs>
           <marker id="arrowhead" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
+            <path d="M0,0 L8,4 L0,8 Z" class="diagram-arrowhead-fill"></path>
+          </marker>
+          <marker id="arrowhead-start" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto-start-reverse">
             <path d="M0,0 L8,4 L0,8 Z" class="diagram-arrowhead-fill"></path>
           </marker>
         </defs>
@@ -85,17 +88,37 @@
           <text x="340" y="202" text-anchor="middle" class="diagram-subtitle">Everything you've done, connected</text>
         </g>
 
-        <path class="diagram-arrow" d="M340,222 L340,288" fill="none" marker-end="url(#arrowhead)"></path>
+        <!-- Bidirectional: the AI queries the graph and reads results back, repeatedly --
+             not a one-shot handoff. -->
+        <path class="diagram-arrow" d="M320,222 L320,288" fill="none" marker-end="url(#arrowhead)"></path>
+        <path class="diagram-arrow" d="M360,288 L360,222" fill="none" marker-end="url(#arrowhead)"></path>
 
         <circle class="diagram-flow-dot" r="5">
-          <animateMotion dur="1.6s" repeatCount="indefinite" begin="1s" path="M340,222 L340,288"></animateMotion>
+          <animateMotion dur="1.6s" repeatCount="indefinite" begin="1s" path="M320,222 L320,288"></animateMotion>
           <animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.15;0.85;1" dur="1.6s" repeatCount="indefinite" begin="1s"></animate>
+        </circle>
+        <circle class="diagram-flow-dot" r="5">
+          <animateMotion dur="1.6s" repeatCount="indefinite" begin="1.8s" path="M360,288 L360,222"></animateMotion>
+          <animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.15;0.85;1" dur="1.6s" repeatCount="indefinite" begin="1.8s"></animate>
+        </circle>
+
+        <g class="diagram-graph">
+          <rect x="190" y="290" width="300" height="70" rx="10"></rect>
+          <text x="340" y="315" text-anchor="middle" class="diagram-title">Your connected AI</text>
+          <text x="340" y="337" text-anchor="middle" class="diagram-subtitle">Claude, queried live over MCP —</text>
+          <text x="340" y="352" text-anchor="middle" class="diagram-subtitle">back and forth, not one-shot</text>
+        </g>
+
+        <path class="diagram-arrow" d="M340,362 L340,428" fill="none" marker-end="url(#arrowhead)"></path>
+
+        <circle class="diagram-flow-dot" r="5">
+          <animateMotion dur="1.6s" repeatCount="indefinite" begin="3s" path="M340,362 L340,428"></animateMotion>
+          <animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.15;0.85;1" dur="1.6s" repeatCount="indefinite" begin="3s"></animate>
         </circle>
 
         <g class="diagram-output">
-          <rect x="190" y="290" width="300" height="70" rx="10"></rect>
-          <text x="340" y="320" text-anchor="middle" class="diagram-title">AI-tailored CV, per job — in seconds</text>
-          <text x="340" y="342" text-anchor="middle" class="diagram-subtitle">Grounded in real evidence, not guesses</text>
+          <rect x="190" y="430" width="300" height="42" rx="10"></rect>
+          <text x="340" y="456" text-anchor="middle" class="diagram-title">Tailored CVs. Grounded advice.</text>
         </g>
       </svg>
     </div>
@@ -108,8 +131,11 @@
     <div class="wrap">
       <p class="example-label">Setup</p>
       <p>
-        Connect your GitHub, LinkedIn, and courses once. PersonalKnowHow builds your
-        knowledge graph and connects it to your AI — Claude, or any MCP-compatible assistant.
+        Upload your LinkedIn export once — the same "Request my data" zip LinkedIn already
+        gives you. PersonalKnowHow builds your knowledge graph from it and hands you back a
+        link. Add that link as a connector in Claude, or any MCP-compatible assistant, whenever
+        you want to use it — that part's on you. (GitHub, course platforms, and more sources
+        are on the roadmap — not part of the hosted upload yet.)
       </p>
 
       <p class="example-label">Usage — match against a job posting</p>
@@ -140,14 +166,14 @@ a course you finished, work you actually did. Not invented phrasing.</code></pre
           <span class="step-num">1</span>
           <div>
             <h3>Collect</h3>
-            <p>Pulls your history from LinkedIn, GitHub, DataCamp, edX, Gmail, and your own project repos — automatically, into one place.</p>
+            <p>Upload your LinkedIn export — the "Request my data" zip from LinkedIn's own Settings & Privacy. That's what the hosted product ingests today; more sources are on the roadmap.</p>
           </div>
         </li>
         <li>
           <span class="step-num">2</span>
           <div>
             <h3>Understand</h3>
-            <p>Understands what you've actually done, not just the words you used — recognizes "built data pipelines" and "ETL experience" as related, even if they're never phrased the same way. Real AI embeddings, not keyword tags.</p>
+            <p>Recognizes the skills and tools behind what you've actually done, not just the exact words you used to describe them. Real AI embeddings, not keyword tags — works the same across any field.</p>
           </div>
         </li>
         <li>

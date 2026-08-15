@@ -12,14 +12,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Privacy Policy — PersonalKnowHow</title>
 <meta name="description" content="How PersonalKnowHow collects, uses, and protects your data." />
-<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🧠</text></svg>" />
+<link rel="icon" href="/logo.png" />
 <link rel="stylesheet" href="/styles.css" />
 </head>
 <body>
 
 <nav class="site-nav">
   <div class="wrap nav-inner">
-    <a href="/" class="nav-brand" style="text-decoration:none;">PersonalKnowHow</a>
+    <a href="/" class="nav-brand" style="text-decoration:none;"><img src="/logo.png" alt="" />PersonalKnowHow</a>
     <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Switch between dark and light theme">
       <svg class="icon-sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
       <svg class="icon-moon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
@@ -31,18 +31,10 @@
   <h1>Privacy Policy</h1>
   <p class="legal-updated">Last updated: August 14, 2026</p>
 
-  <div class="legal-note">
-    <strong>Draft notice:</strong> this policy has not yet had independent legal review.
-    It accurately describes how PersonalKnowHow actually works today, and how it's intended
-    to work once the hosted product launches — but it should not be relied on as a finished,
-    reviewed legal document until a qualified professional has checked it, particularly the
-    sections on LinkedIn data handling and GDPR rights.
-  </div>
-
   <h2>Who we are</h2>
   <p>
-    PersonalKnowHow ("we", "us") is operated by <strong>[legal entity name — to be added
-    once business registration is complete]</strong>, based in Denmark. You can reach us at
+    PersonalKnowHow ("we", "us") is operated by <strong>Georgi Petkov</strong>, based in
+    Denmark. You can reach us at
     <a href="mailto:privacy@personalknowhow.com">privacy@personalknowhow.com</a>.
   </p>
 
@@ -68,18 +60,21 @@
     local storage, which never leaves your device.
   </p>
 
-  <h2>What we'll collect if you use the hosted product</h2>
+  <h2>What we collect if you use the hosted product</h2>
   <p>
-    This section describes the intended handling once the hosted service is live — it isn't
-    live yet, but we want to be upfront about the plan before asking anyone to connect real
-    accounts. If and when you connect your own accounts, with your explicit authorization:
+    Today, uploading is the only way in. After you get an invite link, you upload your own
+    LinkedIn <strong>"Request my data" export</strong> — a zip file LinkedIn generates for you
+    under Settings &amp; Privacy &rarr; Data privacy &rarr; Get a copy of your data. We parse the
+    CSV files inside it to build your knowledge graph. There's no OAuth connection and no live
+    API access to your LinkedIn account involved — it's a file you download from LinkedIn
+    yourself and hand to us once.
   </p>
-  <ul>
-    <li><strong>LinkedIn</strong> — via LinkedIn's official Member Data Portability API, using
-    LinkedIn's own OAuth consent flow. We only ever request what you explicitly authorize.</li>
-    <li><strong>GitHub</strong> — your public activity and repositories, via GitHub's API.</li>
-    <li><strong>Course platforms</strong> — completion records you choose to connect.</li>
-  </ul>
+  <p>
+    More sources beyond LinkedIn may be added later. If and when that happens, this policy
+    will be updated first with the real, specific mechanism for that source — including
+    whether it needs your login credentials, what's actually collected, and how you can
+    decline — before it's ever turned on for hosted customers.
+  </p>
   <p>
     This data is used only to build your personal knowledge graph and serve it back to
     you — through your own AI assistant, or through the tools on this site. It is never sold,
@@ -90,17 +85,19 @@
 
   <h2>Who processes your data</h2>
   <p>
-    PersonalKnowHow runs entirely on <strong>Cloudflare</strong> (Workers, D1 for storage,
-    Workers AI for generating embeddings, Email Routing for the address above). Cloudflare
-    acts as our infrastructure processor; we don't use any other third-party data processor.
+    PersonalKnowHow runs entirely on <strong>Cloudflare</strong> (Workers, D1 for storage of
+    invite/account records, R2 for your uploaded export and processed data, Workers AI for
+    generating embeddings, Email Routing for the address above). Cloudflare acts as our
+    infrastructure processor; we don't use any other third-party data processor.
   </p>
 
   <h2>Deletion</h2>
   <p>
-    You can ask us to delete your data at any time by emailing
-    <a href="mailto:privacy@personalknowhow.com">privacy@personalknowhow.com</a>. We'll
-    delete it immediately on request. Once the hosted product is live, this will also be
-    available as a self-serve action inside the product itself, without needing to email us.
+    If you've uploaded data, there's a "Delete my data" button on your upload status page —
+    it requires typing the email your invite was sent to as confirmation, then immediately and
+    permanently deletes your uploaded export and processed data, and cuts off access to your
+    MCP server right away. You can also ask us to delete your data at any time by emailing
+    <a href="mailto:privacy@personalknowhow.com">privacy@personalknowhow.com</a>.
   </p>
 
   <h2>Security</h2>

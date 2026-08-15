@@ -25,4 +25,5 @@ jobs:
           GMAIL_SENDER: ${{ secrets.GMAIL_USER }}
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
           INVITE_TOKEN: ${{ inputs.token }}
+          STRIPE_PAYMENT_LINK: ${{ secrets.STRIPE_PAYMENT_LINK }}
         run: python .github/scripts/send_payment_link.py

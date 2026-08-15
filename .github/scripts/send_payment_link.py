@@ -42,17 +42,32 @@ email = row["email"]
 if not email:
     raise SystemExit("This invite has no email on file -- can't send a payment link.")
 
-pay_url = f"https://personalknowhow.com/mock-pay?token={TOKEN}"
+# Once a real Stripe Payment Link exists, set STRIPE_PAYMENT_LINK (repo secret) to its URL --
+# client_reference_id is how /api/stripe-webhook's checkout.session.completed handler
+# correlates the payment back to this exact invite row, so it must be appended here, not
+# configured inside the Payment Link itself. Until then, falls back to the mock click-through
+# confirmation at /mock-pay.
+stripe_payment_link = os.environ.get("STRIPE_PAYMENT_LINK", "").strip()
+test_mode = not stripe_payment_link
+pay_url = (
+    f"{stripe_payment_link}?client_reference_id={TOKEN}"
+    if stripe_payment_link
+    else f"https://personalknowhow.com/mock-pay?token={TOKEN}"
+)
+
+test_mode_note = (
+    "\n(Test mode: Stripe isn't wired up yet, so this link simulates a completed payment "
+    "instead of charging anything.)\n"
+    if test_mode
+    else ""
+)
 
 body = f"""Hi,
 
 Your PersonalKnowHow upload was received. One step left -- complete payment to start processing:
 
 {pay_url}
-
-(Test mode: Stripe isn't wired up yet, so this link simulates a completed payment instead of
-charging anything.)
-
+{test_mode_note}
 Once confirmed, processing starts right away -- within 24 hours you'll get another email with
 your personal MCP connection link and step-by-step instructions to add it to Claude (Claude.ai
 web or Claude Desktop).

@@ -74,8 +74,17 @@ a:hover { color: var(--accent-hover); }
 }
 
 .nav-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   font-weight: 600;
   color: var(--text-primary);
+}
+
+.nav-brand img {
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
 }
 
 .theme-toggle {
@@ -372,15 +381,6 @@ footer p { color: var(--text-secondary); font-size: 0.9rem; }
 .legal ul { padding-left: 20px; }
 .legal li { margin-bottom: 8px; }
 .legal a { color: var(--accent); }
-.legal .legal-note {
-  background: var(--bg-tertiary);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 16px 20px;
-  color: var(--text-secondary);
-  font-size: 0.9rem;
-  margin-bottom: 40px;
-}
 
 @media (max-width: 520px) {
   .hero { padding: 64px 0 40px; }
