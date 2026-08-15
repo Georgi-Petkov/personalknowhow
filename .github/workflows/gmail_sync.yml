@@ -45,7 +45,11 @@ jobs:
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add corpus/gmail/ data/last_gmail_check.txt graph.json
+          # git add errors on any pathspec that matches nothing -- see build_graph.yml's
+          # matching comment for why each path is checked before adding.
+          [ -d corpus/gmail ] && git add corpus/gmail/ || true
+          [ -f data/last_gmail_check.txt ] && git add data/last_gmail_check.txt || true
+          [ -f graph.json ] && git add graph.json || true
           git diff --staged --quiet && echo "No new completions" && exit 0
           git commit -m "chore: gmail sync — new completions + graph update [skip ci]"
           git push

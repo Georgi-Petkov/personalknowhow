@@ -87,7 +87,10 @@ jobs:
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add graph.json corpus/
+          # git add errors on any pathspec that matches nothing -- neither exists
+          # when there was nothing to ingest this run, so check first.
+          [ -f graph.json ] && git add graph.json || true
+          [ -d corpus ] && git add corpus/ || true
           git diff --staged --quiet && echo "No changes to commit" && exit 0
           git commit -m "chore: rebuild graph.json from incoming export [skip ci]"
           git push
