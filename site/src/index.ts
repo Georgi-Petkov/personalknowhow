@@ -53,12 +53,13 @@ export default {
       }
 
       const invite = await env.DB.prepare(
-        "SELECT used_at, deleted_at, mcp_url, mcp_token FROM upload_invites WHERE token = ?"
+        "SELECT used_at, deleted_at, mcp_url, mcp_token, payment_confirmed_at FROM upload_invites WHERE token = ?"
       ).bind(token).first<{
         used_at: string | null;
         deleted_at: string | null;
         mcp_url: string | null;
         mcp_token: string | null;
+        payment_confirmed_at: string | null;
       }>();
 
       if (!invite) {
@@ -72,10 +73,54 @@ export default {
         // (matching the public demo's pattern) has none, and that's fine.
         return Response.json({ status: "ready", mcp_url: invite.mcp_url, mcp_token: invite.mcp_token });
       }
-      if (invite.used_at) {
+      if (invite.payment_confirmed_at) {
         return Response.json({ status: "processing" });
       }
+      if (invite.used_at) {
+        return Response.json({ status: "pending_payment" });
+      }
       return Response.json({ status: "pending_upload" });
+    }
+
+    if (url.pathname === "/mock-pay" && request.method === "GET") {
+      // TEST-MODE STAND-IN for a real Stripe Payment Link + webhook. No money moves
+      // here -- this is a plain link sent by email; clicking it is treated as a
+      // completed payment. Real version: this becomes a real Stripe Payment Link
+      // (the customer never lands back on our domain mid-payment), and confirmation
+      // comes from a POST /api/stripe-webhook verifying a signed checkout.session.completed
+      // event, not a GET a browser can trigger by itself.
+      const token = url.searchParams.get("token") ?? "";
+      const page = (title: string, body: string) =>
+        new Response(
+          `<!doctype html><html><head><meta charset="utf-8"><title>${title} — PersonalKnowHow</title></head><body style="font-family:sans-serif;max-width:520px;margin:80px auto;padding:0 20px;"><h2>${title}</h2><p>${body}</p></body></html>`,
+          { headers: { "Content-Type": "text/html; charset=utf-8" } },
+        );
+
+      if (!token) {
+        return page("Invalid link", "This payment link is missing its token.");
+      }
+
+      const invite = await env.DB.prepare(
+        "SELECT used_at, deleted_at, payment_confirmed_at FROM upload_invites WHERE token = ?"
+      ).bind(token).first<{
+        used_at: string | null;
+        deleted_at: string | null;
+        payment_confirmed_at: string | null;
+      }>();
+
+      if (!invite || invite.deleted_at) {
+        return page("Invalid link", "This link is no longer valid.");
+      }
+      if (!invite.used_at) {
+        return page("Not ready", "Upload your file before paying.");
+      }
+      if (!invite.payment_confirmed_at) {
+        await env.DB.prepare(
+          "UPDATE upload_invites SET payment_confirmed_at = ? WHERE token = ?"
+        ).bind(new Date().toISOString(), token).run();
+      }
+
+      return page("Payment received", "Processing has started. You'll get another email with your MCP connection link once it's ready.");
     }
 
     if (url.pathname === "/api/delete-data" && request.method === "POST") {

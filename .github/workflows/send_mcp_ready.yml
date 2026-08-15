@@ -1,0 +1,28 @@
+name: Send MCP Ready
+
+on:
+  workflow_dispatch:
+    inputs:
+      token:
+        description: "Invite token (mcp_url must already be set in D1) to send the MCP-ready email for."
+        required: true
+
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - run: pip install requests
+
+      - name: Send MCP-ready email
+        env:
+          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_D1_TOKEN }}
+          GMAIL_SENDER: ${{ secrets.GMAIL_USER }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          INVITE_TOKEN: ${{ inputs.token }}
+        run: python .github/scripts/send_mcp_ready.py

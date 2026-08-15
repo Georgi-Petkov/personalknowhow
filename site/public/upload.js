@@ -3,6 +3,7 @@ const status = document.getElementById("upload-status");
 
 const views = {
   upload: document.getElementById("upload-view"),
+  pending_payment: document.getElementById("pending-payment-view"),
   processing: document.getElementById("processing-view"),
   ready: document.getElementById("ready-view"),
   deleted: document.getElementById("deleted-view"),
@@ -52,6 +53,8 @@ async function refreshStatus() {
 
     if (data.status === "pending_upload") {
       showView("upload");
+    } else if (data.status === "pending_payment") {
+      showView("pending_payment");
     } else if (data.status === "processing") {
       showView("processing");
     } else if (data.status === "ready") {
