@@ -137,8 +137,8 @@ def main() -> None:
     from graphify.export import to_json
 
     if not CORPUS.exists():
-        print(f"ERROR: corpus/ not found at {CORPUS}")
-        sys.exit(1)
+        print(f"No corpus/ at {CORPUS} yet. Nothing to build.")
+        return
 
     md_files = list(CORPUS.rglob("*.md"))
     if not md_files:
