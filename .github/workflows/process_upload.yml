@@ -93,11 +93,12 @@ jobs:
           # LinkedIn's zip layout varies -- CSVs can be at the top level, or one
           # level deeper inside a nested folder. Find wherever Certifications.csv
           # actually landed, ignoring macOS metadata junk, rather than assuming.
-          CSV_DIR=$(find "$DEST" -name "Certifications.csv" -not -path "*/__MACOSX/*" -print -quit | xargs -r dirname)
-          if [ -z "$CSV_DIR" ]; then
+          CSV_FILE=$(find "$DEST" -name "Certifications.csv" -not -path "*/__MACOSX/*" -print -quit)
+          if [ -z "$CSV_FILE" ]; then
             echo "::error::Certifications.csv not found anywhere under $DEST"
             exit 1
           fi
+          CSV_DIR=$(dirname "$CSV_FILE")
           echo "CSV_DIR=$CSV_DIR" >> "$GITHUB_ENV"
           echo "Resolved CSV directory: $CSV_DIR"
 

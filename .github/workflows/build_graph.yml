@@ -51,11 +51,12 @@ jobs:
           fi
 
       - name: Run GitHub ingest
-        if: ${{ secrets.GITHUB_INGEST_TOKEN != '' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_INGEST_TOKEN }}
         run: |
-          if [ -f ingest/github_ingest.py ]; then
+          if [ -z "$GITHUB_TOKEN" ]; then
+            echo "GITHUB_INGEST_TOKEN not set — skipping"
+          elif [ -f ingest/github_ingest.py ]; then
             python ingest/github_ingest.py
           else
             echo "github_ingest.py not found — skipping"
