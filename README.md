@@ -1,4 +1,6 @@
-# PKH — PersonalKnowHow
+[![PersonalKnowHow](design/social/github-social-preview.png)](https://personalknowhow.com)
+
+**[Join the Waitlist](https://personalknowhow.com)** · [Live Demo](#try-the-live-demo) · [Issues](https://github.com/Georgi-Petkov/personalknowhow/issues)
 
 Turns a scattered personal learning/work history — LinkedIn, GitHub, course platforms, Gmail
 completion emails, sibling project repos — into a unified knowledge graph, served over two
