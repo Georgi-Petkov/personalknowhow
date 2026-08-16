@@ -63,7 +63,6 @@ TYPE_MAP: dict[str, str] = {
     "linkedin/job_applicant_saved_answers": "saved_answer",
     "linkedin/talent_question_saved_responses": "saved_answer",
 }
-SENSITIVE_TYPES = {"career_interest", "job_application"}
 # corpus/datacamp/ is folder-mapped to "course" above, but skill_assessment
 # entries (DataCamp Skill Assessments, added 2026-08-10) live in that same
 # folder and represent passing an assessment, not completing a course --
@@ -168,20 +167,27 @@ def build_entries() -> list[dict]:
 
     # Over-filter guard, inverted from the public script's under-filter guard:
     # fail loudly if this run somehow produced fewer entries than the corpus
-    # actually has, or if the two sensitive types have silently disappeared.
+    # actually has.
     if len(entries) != len(content_nodes):
         print(f"SAFETY CHECK FAILED — {len(content_nodes)} content nodes in graph.json "
               f"but only {len(entries)} entries built.", file=sys.stderr)
         sys.exit(1)
+    # Only fail if the corpus actually HAS source files for a sensitive category
+    # but none of them survived into the output under the right type -- that's a
+    # real TYPE_MAP/matching regression. Not every real customer has job-
+    # application or career-interest history in their LinkedIn export at all,
+    # and an empty category is normal, not a bug -- this used to assert
+    # SENSITIVE_TYPES must always be present, which only held because this
+    # script had only ever run against the developer's own (rich) corpus.
     present_types = {e["type"] for e in entries}
-    missing_sensitive = SENSITIVE_TYPES - present_types
-    if missing_sensitive:
-        print(f"SAFETY CHECK FAILED — private export is missing expected sensitive "
-              f"type(s): {missing_sensitive}. This script must include everything; "
-              f"if these categories are genuinely gone from the corpus, update "
-              f"SENSITIVE_TYPES deliberately rather than letting this pass silently.",
-              file=sys.stderr)
-        sys.exit(1)
+    for sensitive_type, prefix in (("career_interest", "linkedin/career_interests"),
+                                    ("job_application", "linkedin/job_applications")):
+        corpus_has_it = any(str(n.get("source_file", "")).startswith(prefix) for n in content_nodes)
+        if corpus_has_it and sensitive_type not in present_types:
+            print(f"SAFETY CHECK FAILED — corpus has {prefix} source files but none mapped "
+                  f"to type '{sensitive_type}' in the output. This indicates a TYPE_MAP "
+                  f"regression, not an empty corpus.", file=sys.stderr)
+            sys.exit(1)
     if unmapped:
         print(f"NOTE: {len(unmapped)} node(s) had no TYPE_MAP entry, typed 'unknown': "
               f"{unmapped[:5]}{'...' if len(unmapped) > 5 else ''}", file=sys.stderr)
