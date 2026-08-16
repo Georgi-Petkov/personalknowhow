@@ -3,9 +3,32 @@ export interface Env {
   DB: D1Database;
   STORAGE: R2Bucket;
   STRIPE_WEBHOOK_SECRET: string;
+  SLUG_HMAC_KEY: string;
 }
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+// Customer-facing subdomains/Worker names are derived from a secret HMAC over the
+// email, not the email's local part -- a local-part slug (e.g. "wife" or
+// "janedoe") still puts an identity-adjacent string in a public URL. The key
+// lives only as a Worker secret, never in the database, so even full DB read
+// access can't be used to confirm "is this email a customer" by recomputing the
+// hash -- you'd need the key too. Separate purpose strings ("public"/"private")
+// so the two tiers' slugs are cryptographically unlinkable from each other.
+async function deriveSlug(key: string, email: string, purpose: "public" | "private"): Promise<string> {
+  const cryptoKey = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(key),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  const sigBytes = await crypto.subtle.sign(
+    "HMAC", cryptoKey, new TextEncoder().encode(`${email}:${purpose}`)
+  );
+  const hex = [...new Uint8Array(sigBytes)].map((b) => b.toString(16).padStart(2, "0")).join("");
+  return hex.slice(0, 10);
+}
 
 // Plain Web Crypto HMAC verification -- no Stripe SDK dependency needed since we
 // only ever verify Payment Link webhooks here, never call the Stripe API. Stripe's
@@ -292,9 +315,12 @@ export default {
         return Response.json({ error: "Enter a valid email address." }, { status: 400 });
       }
 
+      const publicSlug = await deriveSlug(env.SLUG_HMAC_KEY, email, "public");
+      const privateSlug = await deriveSlug(env.SLUG_HMAC_KEY, email, "private");
+
       await env.DB.prepare(
-        "INSERT OR IGNORE INTO subscribers (email, note, created_at) VALUES (?, ?, ?)"
-      ).bind(email, note, new Date().toISOString()).run();
+        "INSERT OR IGNORE INTO subscribers (email, note, created_at, public_slug, private_slug) VALUES (?, ?, ?, ?, ?)"
+      ).bind(email, note, new Date().toISOString(), publicSlug, privateSlug).run();
 
       return Response.json({ ok: true });
     }
