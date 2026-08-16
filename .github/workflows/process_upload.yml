@@ -175,3 +175,25 @@ jobs:
             --data-binary "@mcp-private/private_embeddings.json" "$BASE/customers/$PRIVATE_SLUG/embeddings.json"
 
           echo "Wrote customers/$PUBLIC_SLUG/{entries,embeddings}.json (public) and customers/$PRIVATE_SLUG/{entries,embeddings}.json (private) to R2."
+
+      # ── Delete the raw LinkedIn export now that both tiers are safely built --
+      #    GDPR data-minimization: nothing downstream ever reads the raw zip again
+      #    once entries.json/embeddings.json exist, so there's no reason to keep it.
+      #    Scope is deliberately narrow: only raw/<uuid>.zip is removed here -- the
+      #    built customers/{slug}/ exports (the actual MCP data) are untouched and
+      #    stay until an explicit delete-my-data request. ─────────────────────────
+      - name: Delete raw upload (data minimization)
+        env:
+          CLOUDFLARE_R2_AI_TOKEN: ${{ secrets.CLOUDFLARE_R2_AI_TOKEN }}
+          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_D1_TOKEN }}
+          UPLOAD_KEY: ${{ inputs.upload_key }}
+        run: |
+          BASE="https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/r2/buckets/personalknowhow-storage/objects"
+          curl -sf -X DELETE -H "Authorization: Bearer $CLOUDFLARE_R2_AI_TOKEN" "$BASE/$UPLOAD_KEY"
+
+          D1_URL="https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/d1/database/$D1_DATABASE_ID/query"
+          curl -sf -X POST -H "Authorization: Bearer $CF_API_TOKEN" -H "Content-Type: application/json" \
+            -d "$(python3 -c "import json,sys; print(json.dumps({'sql': 'UPDATE upload_invites SET r2_upload_key = NULL WHERE r2_upload_key = ?', 'params': [sys.argv[1]]}))" "$UPLOAD_KEY")" \
+            "$D1_URL"
+
+          echo "Deleted raw upload $UPLOAD_KEY -- processed exports in customers/$PUBLIC_SLUG/ and customers/$PRIVATE_SLUG/ are untouched."
