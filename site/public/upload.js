@@ -100,7 +100,7 @@ document.getElementById("upload-form").addEventListener("submit", async (event) 
 
     if (response.ok) {
       status.textContent = "";
-      showView("processing");
+      await refreshStatus();
     } else {
       status.textContent = data.error || "Something went wrong. Try again.";
       submitButton.disabled = false;
