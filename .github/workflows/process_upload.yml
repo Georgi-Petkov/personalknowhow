@@ -6,20 +6,10 @@ on:
       upload_key:
         description: "R2 object key of the uploaded zip, e.g. raw/<uuid>.zip"
         required: true
-      customer_label:
-        description: "Short label for this person, used as the R2 output prefix (e.g. wife)"
-        required: true
-      dataset:
-        description: "public = safe subset (courses/projects/certs/etc, no job-search signal); private = full set, only ever deploy this behind a bearer token"
-        required: true
-        type: choice
-        default: "public"
-        options:
-          - "public"
-          - "private"
 
 env:
   CLOUDFLARE_ACCOUNT_ID: "716dcf9e5806cc9dbb777e0b80bb236d"
+  D1_DATABASE_ID: "934afff4-c462-41b0-91ff-2232473c5286"
 
 jobs:
   process:
@@ -44,6 +34,45 @@ jobs:
           curl -sf -o /tmp/upload.zip \
             -H "Authorization: Bearer $CLOUDFLARE_R2_AI_TOKEN" \
             "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/r2/buckets/personalknowhow-storage/objects/$UPLOAD_KEY"
+
+      # ── Look up this customer's public/private slugs -- derived once, at waitlist
+      #    signup time, from a secret HMAC over their email (site/src/index.ts's
+      #    deriveSlug). Never hand-typed, so there's nothing here to collide or leak
+      #    an identity-adjacent name into a public URL. ──────────────────────────
+      - name: Look up customer slugs
+        env:
+          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_D1_TOKEN }}
+          UPLOAD_KEY: ${{ inputs.upload_key }}
+        run: |
+          D1_URL="https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/d1/database/$D1_DATABASE_ID/query"
+
+          EMAIL=$(curl -sf -X POST -H "Authorization: Bearer $CF_API_TOKEN" -H "Content-Type: application/json" \
+            -d "$(python3 -c "import json,sys; print(json.dumps({'sql': 'SELECT email FROM upload_invites WHERE r2_upload_key = ?', 'params': [sys.argv[1]]}))" "$UPLOAD_KEY")" \
+            "$D1_URL" | python3 -c "import json,sys; r=json.load(sys.stdin)['result'][0]['results']; print(r[0]['email'] if r else '')")
+
+          if [ -z "$EMAIL" ]; then
+            echo "::error::No upload_invites row found for upload_key=$UPLOAD_KEY"
+            exit 1
+          fi
+
+          SLUGS=$(curl -sf -X POST -H "Authorization: Bearer $CF_API_TOKEN" -H "Content-Type: application/json" \
+            -d "$(python3 -c "import json,sys; print(json.dumps({'sql': 'SELECT public_slug, private_slug FROM subscribers WHERE email = ?', 'params': [sys.argv[1]]}))" "$EMAIL")" \
+            "$D1_URL")
+
+          PUBLIC_SLUG=$(echo "$SLUGS" | python3 -c "import json,sys; r=json.load(sys.stdin)['result'][0]['results']; print(r[0]['public_slug'] if r else '')")
+          PRIVATE_SLUG=$(echo "$SLUGS" | python3 -c "import json,sys; r=json.load(sys.stdin)['result'][0]['results']; print(r[0]['private_slug'] if r else '')")
+
+          if [ -z "$PUBLIC_SLUG" ] || [ -z "$PRIVATE_SLUG" ]; then
+            echo "::error::No slugs found for $EMAIL -- was this email ever submitted through /api/waitlist?"
+            exit 1
+          fi
+
+          {
+            echo "EMAIL=$EMAIL"
+            echo "PUBLIC_SLUG=$PUBLIC_SLUG"
+            echo "PRIVATE_SLUG=$PRIVATE_SLUG"
+          } >> "$GITHUB_ENV"
+          echo "Resolved slugs for $EMAIL: public=$PUBLIC_SLUG private=$PRIVATE_SLUG"
 
       # ── Validate BEFORE extracting anything -- reads the zip's central directory
       #    only, never extracts a byte. Rejects zip bombs, path-traversal entries,
@@ -86,7 +115,7 @@ jobs:
 
       - name: Extract validated upload
         run: |
-          DEST="data/incoming/extracted/linkedin_${{ inputs.customer_label }}"
+          DEST="data/incoming/extracted/linkedin_$PUBLIC_SLUG"
           mkdir -p "$DEST"
           unzip -o /tmp/upload.zip -d "$DEST"
 
@@ -115,35 +144,34 @@ jobs:
       - name: Build knowledge graph
         run: python ingest/build_graph.py
 
-      - name: Generate embeddings
+      # ── Build both tiers unconditionally -- every customer gets both a public
+      #    (safe, unauthenticated-capable) and a private (full, bearer-token-gated)
+      #    export in one run, instead of picking one at process time. ─────────────
+      - name: Build public export
         env:
           CLOUDFLARE_AI_TOKEN: ${{ secrets.CLOUDFLARE_R2_AI_TOKEN }}
-        run: |
-          if [ "${{ inputs.dataset }}" = "private" ]; then
-            python ingest/build_private_export.py
-            echo "SRC_DIR=mcp-private" >> "$GITHUB_ENV"
-            echo "SRC_PREFIX=private" >> "$GITHUB_ENV"
-          else
-            python ingest/build_public_export.py
-            echo "SRC_DIR=mcp" >> "$GITHUB_ENV"
-            echo "SRC_PREFIX=public" >> "$GITHUB_ENV"
-          fi
+        run: python ingest/build_public_export.py
 
-      # ── Upload results to R2 — never committed to git ─────────────────────
+      - name: Build private export
+        env:
+          CLOUDFLARE_AI_TOKEN: ${{ secrets.CLOUDFLARE_R2_AI_TOKEN }}
+        run: python ingest/build_private_export.py
+
+      # ── Upload both results to R2 — never committed to git ─────────────────
       - name: Upload results to R2
         env:
           CLOUDFLARE_R2_AI_TOKEN: ${{ secrets.CLOUDFLARE_R2_AI_TOKEN }}
         run: |
           BASE="https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/r2/buckets/personalknowhow-storage/objects"
-          PREFIX="customers/${{ inputs.customer_label }}"
-          curl -sf -X PUT \
-            -H "Authorization: Bearer $CLOUDFLARE_R2_AI_TOKEN" \
-            -H "Content-Type: application/json" \
-            --data-binary "@$SRC_DIR/${SRC_PREFIX}_entries.json" \
-            "$BASE/$PREFIX/entries.json"
-          curl -sf -X PUT \
-            -H "Authorization: Bearer $CLOUDFLARE_R2_AI_TOKEN" \
-            -H "Content-Type: application/json" \
-            --data-binary "@$SRC_DIR/${SRC_PREFIX}_embeddings.json" \
-            "$BASE/$PREFIX/embeddings.json"
-          echo "Wrote $PREFIX/entries.json and $PREFIX/embeddings.json to R2 (dataset: ${{ inputs.dataset }})."
+
+          curl -sf -X PUT -H "Authorization: Bearer $CLOUDFLARE_R2_AI_TOKEN" -H "Content-Type: application/json" \
+            --data-binary "@mcp/public_entries.json" "$BASE/customers/$PUBLIC_SLUG/entries.json"
+          curl -sf -X PUT -H "Authorization: Bearer $CLOUDFLARE_R2_AI_TOKEN" -H "Content-Type: application/json" \
+            --data-binary "@mcp/public_embeddings.json" "$BASE/customers/$PUBLIC_SLUG/embeddings.json"
+
+          curl -sf -X PUT -H "Authorization: Bearer $CLOUDFLARE_R2_AI_TOKEN" -H "Content-Type: application/json" \
+            --data-binary "@mcp-private/private_entries.json" "$BASE/customers/$PRIVATE_SLUG/entries.json"
+          curl -sf -X PUT -H "Authorization: Bearer $CLOUDFLARE_R2_AI_TOKEN" -H "Content-Type: application/json" \
+            --data-binary "@mcp-private/private_embeddings.json" "$BASE/customers/$PRIVATE_SLUG/embeddings.json"
+
+          echo "Wrote customers/$PUBLIC_SLUG/{entries,embeddings}.json (public) and customers/$PRIVATE_SLUG/{entries,embeddings}.json (private) to R2."
