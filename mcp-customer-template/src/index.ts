@@ -167,9 +167,17 @@ export default {
       return new Response("This data has been deleted.", { status: 410 });
     }
     // NULL-guarded: invites with no subscription_status at all never went
-    // through Stripe and are left untouched -- only rows that DID go through
-    // Stripe get enforced on cancellation.
-    if (row?.subscription_status && row.subscription_status !== "active") {
+    // through Stripe and are left untouched. Block-list, not an allow-list of
+    // just "active" -- Stripe has legitimate in-progress states ("past_due"
+    // while Smart Retries is still attempting a failed renewal charge,
+    // "trialing") that should NOT cut access immediately. The retry schedule
+    // and dunning reminder emails are Stripe's own (Dashboard: Settings ->
+    // Billing -> Subscriptions and emails), not tracked here -- this only
+    // blocks once Stripe's own process has concluded the subscription is
+    // genuinely over, via the existing customer.subscription.updated/.deleted
+    // webhook in site/src/index.ts.
+    const BLOCKED_SUBSCRIPTION_STATUSES = new Set(["canceled", "unpaid", "incomplete_expired"]);
+    if (row?.subscription_status && BLOCKED_SUBSCRIPTION_STATUSES.has(row.subscription_status)) {
       return new Response("Subscription is not active.", { status: 402 });
     }
 
