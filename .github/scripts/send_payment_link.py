@@ -1,17 +1,24 @@
 import os
-import smtplib
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
 
 import requests
 
 ACCOUNT_ID = "716dcf9e5806cc9dbb777e0b80bb236d"
 DATABASE_ID = "934afff4-c462-41b0-91ff-2232473c5286"
+SEND_AS = "PersonalKnowHow <office@personalknowhow.com>"
 
 CF_API_TOKEN = os.environ["CF_API_TOKEN"]
-GMAIL_SENDER = os.environ["GMAIL_SENDER"]
-GMAIL_APP_PASSWORD = os.environ["GMAIL_APP_PASSWORD"]
+RESEND_API_KEY = os.environ["RESEND_API_KEY"]
 TOKEN = os.environ["INVITE_TOKEN"].strip()
+
+
+def send_email(to: str, subject: str, text: str) -> None:
+    response = requests.post(
+        "https://api.resend.com/emails",
+        headers={"Authorization": f"Bearer {RESEND_API_KEY}"},
+        json={"from": SEND_AS, "to": [to], "subject": subject, "text": text},
+        timeout=30,
+    )
+    response.raise_for_status()
 
 
 def d1_query(sql: str, params: list | None = None) -> list[dict]:
@@ -75,16 +82,6 @@ web or Claude Desktop).
 Georgi
 """
 
-SEND_AS = "PersonalKnowHow <office@personalknowhow.com>"
-
-msg = MIMEMultipart("alternative")
-msg["Subject"] = "Complete payment to process your PersonalKnowHow upload"
-msg["From"] = SEND_AS
-msg["To"] = email
-msg.attach(MIMEText(body, "plain", "utf-8"))
-
-with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
-    smtp.login(GMAIL_SENDER, GMAIL_APP_PASSWORD)
-    smtp.sendmail("office@personalknowhow.com", [email], msg.as_string())
+send_email(email, "Complete payment to process your PersonalKnowHow upload", body)
 
 print(f"Payment link sent to {email} (token {TOKEN})")

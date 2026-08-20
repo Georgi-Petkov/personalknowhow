@@ -242,6 +242,17 @@ h1 {
   border-color: var(--accent-hover);
 }
 
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.btn:disabled:hover {
+  transform: none;
+  border-color: var(--border);
+}
+
 .section { padding: 56px 0; }
 .section.alt { background: var(--bg-secondary); }
 .section.example .wrap { padding-top: 0; }

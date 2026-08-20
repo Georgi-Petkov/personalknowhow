@@ -30,7 +30,22 @@
         </p>
         <form id="upload-form" novalidate>
           <input type="file" name="file" accept=".zip" required aria-label="LinkedIn export zip file" />
-          <button type="submit" class="btn btn-primary">Upload</button>
+          <p>
+            <label>
+              Referred by someone? Enter their email (optional)
+              <input type="email" name="referred_by" placeholder="friend@example.com" />
+            </label>
+          </p>
+          <p>
+            <label>
+              <input type="checkbox" name="consent" value="true" required />
+              I understand my data is kept for 90 days from my last upload, used only to power
+              and update my MCP server — never shared or used for anything else. Requesting
+              deletion means no further edits or updates are possible; starting over requires a
+              brand new upload and consent.
+            </label>
+          </p>
+          <button type="submit" class="btn btn-primary" disabled>Upload</button>
         </form>
       </div>
 
@@ -57,26 +72,32 @@
       </div>
 
       <div id="ready-view" hidden>
-        <h2>Your MCP server is ready</h2>
+        <h2>Your MCP servers are ready</h2>
 
-        <div id="mcp-web-section">
-          <p class="example-label">In Claude.ai (web)</p>
-          <p>Settings → Connectors → Add custom connector, then paste this URL:</p>
-          <pre><code id="mcp-url-plain"></code></pre>
-        </div>
-        <p id="mcp-web-unavailable-note" hidden>
-          This server requires a login token, which Claude.ai's web custom-connector form has
-          no field for — use Claude Desktop below instead.
+        <h3>Private — your full data</h3>
+        <p>
+          Requires the login token below. Use this for your own AI assistant — it includes
+          everything, including job-search activity.
         </p>
-
         <p class="example-label">In Claude Desktop</p>
         <p>Add this to your <code>claude_desktop_config.json</code>, then restart Claude Desktop:</p>
-        <pre><code id="mcp-config"></code></pre>
-
-        <p id="mcp-auth-note" hidden>
-          No login or token needed to connect — anyone with this URL can query it, so don't
-          share it beyond who you intend to use it.
+        <pre><code id="mcp-config-private"></code></pre>
+        <p>
+          Claude.ai's web custom-connector form has no field for a login token, so the private
+          server can't be added there — use Claude Desktop above instead.
         </p>
+
+        <h3>Public — shareable know-how card</h3>
+        <p>
+          No login needed — anyone with this URL can query it, so only share it with who you
+          intend to use it. Excludes job-search activity, includes only demonstrated skills and
+          experience.
+        </p>
+        <p class="example-label">In Claude.ai (web)</p>
+        <p>Settings → Connectors → Add custom connector, then paste this URL:</p>
+        <pre><code id="mcp-url-public"></code></pre>
+        <p class="example-label">In Claude Desktop</p>
+        <pre><code id="mcp-config-public"></code></pre>
 
         <p>
           Once connected, ask it anything about your real, uploaded background — job postings,
@@ -91,6 +112,10 @@
             This permanently deletes your uploaded export and processed data, and immediately
             cuts off access to your MCP server — the link above will stop working. This can't
             be undone.
+          </p>
+          <p>
+            After this, we can no longer make any edits or updates to your knowledge base —
+            starting over requires a brand new upload and consent.
           </p>
           <p>
             <label for="delete-email">Type the email this invite was sent to, to confirm:</label><br />

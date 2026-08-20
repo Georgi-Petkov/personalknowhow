@@ -85,7 +85,7 @@ export default {
         // as "?client_reference_id=<token>" when the payment-link email is sent.
         const token = obj["client_reference_id"];
         if (typeof token === "string" && token) {
-          await env.DB.prepare(
+          const result = await env.DB.prepare(
             "UPDATE upload_invites SET payment_confirmed_at = ?, stripe_customer_id = ?, stripe_subscription_id = ?, subscription_status = 'active' " +
             "WHERE token = ? AND payment_confirmed_at IS NULL"
           ).bind(
@@ -94,6 +94,30 @@ export default {
             typeof obj["subscription"] === "string" ? obj["subscription"] : null,
             token,
           ).run();
+
+          // Referral credits: only on the genuine first confirmation for this invite
+          // (guarded by the WHERE above, confirmed via changes > 0 -- a redelivered
+          // webhook for an already-confirmed invite is a no-op here too). checkout
+          // session id is the idempotency key on referral_credits, suffixed per
+          // beneficiary since one session earns up to two rows.
+          if (result.meta.changes > 0) {
+            const invite = await env.DB.prepare(
+              "SELECT email, referred_by FROM upload_invites WHERE token = ?"
+            ).bind(token).first<{ email: string | null; referred_by: string | null }>();
+
+            if (invite?.referred_by && invite.email) {
+              const sessionId = typeof obj["id"] === "string" ? obj["id"] : token;
+              const now = new Date().toISOString();
+              await env.DB.batch([
+                env.DB.prepare(
+                  "INSERT OR IGNORE INTO referral_credits (beneficiary_email, reason, checkout_session_id, credited_at) VALUES (?, 'referrer_bonus', ?, ?)"
+                ).bind(invite.referred_by, `${sessionId}:referrer`, now),
+                env.DB.prepare(
+                  "INSERT OR IGNORE INTO referral_credits (beneficiary_email, reason, checkout_session_id, credited_at) VALUES (?, 'referred_new_user', ?, ?)"
+                ).bind(invite.email, `${sessionId}:referred`, now),
+              ]);
+            }
+          }
         }
       } else if (event.type === "customer.subscription.updated" || event.type === "customer.subscription.deleted") {
         const subscriptionId = obj["id"];
@@ -115,8 +139,8 @@ export default {
       }
 
       const invite = await env.DB.prepare(
-        "SELECT used_at, deleted_at FROM upload_invites WHERE token = ?"
-      ).bind(token).first<{ used_at: string | null; deleted_at: string | null }>();
+        "SELECT used_at, deleted_at, email FROM upload_invites WHERE token = ?"
+      ).bind(token).first<{ used_at: string | null; deleted_at: string | null; email: string | null }>();
 
       if (!invite || invite.used_at || invite.deleted_at) {
         return Response.json({ error: "Invalid or already-used upload link." }, { status: 401 });
@@ -126,6 +150,33 @@ export default {
       const file = formData.get("file");
       if (!(file instanceof File)) {
         return Response.json({ error: "No file received." }, { status: 400 });
+      }
+      // Required, not just recorded for show -- this is the 90-day fixed-retention
+      // consent (see retention_expiry.py), so an upload with no consent shouldn't
+      // silently proceed under the old no-consent assumption.
+      if (formData.get("consent") !== "true") {
+        return Response.json({ error: "Consent is required to upload." }, { status: 400 });
+      }
+
+      // Referral attribution: an email, not a slug -- a slug (public_slug/private_slug)
+      // is the live subdomain that serves that person's MCP data, so handing it out as a
+      // casually-shared referral code would leak a real data endpoint. An email grants
+      // access to nothing. Only counts if it belongs to a real paying/comped customer
+      // (not merely a waitlist signup, which subscribers alone would not distinguish) and
+      // isn't the uploader's own email (self-referral guard). Invalid/unverifiable input
+      // is silently dropped -- never blocks the upload itself.
+      let referredBy: string | null = null;
+      const referredByRaw = formData.get("referred_by");
+      if (typeof referredByRaw === "string" && referredByRaw.trim()) {
+        const normalized = referredByRaw.trim().toLowerCase();
+        if (normalized !== (invite.email ?? "").trim().toLowerCase()) {
+          const referrer = await env.DB.prepare(
+            "SELECT email FROM upload_invites WHERE email = ? AND (payment_confirmed_at IS NOT NULL OR subscription_status IN ('active', 'comped'))"
+          ).bind(normalized).first<{ email: string }>();
+          if (referrer) {
+            referredBy = referrer.email;
+          }
+        }
       }
 
       const bytes = await file.arrayBuffer();
@@ -143,9 +194,10 @@ export default {
       const r2Key = `raw/${uploadId}.zip`;
       await env.STORAGE.put(r2Key, bytes);
 
+      const now = new Date().toISOString();
       await env.DB.prepare(
-        "UPDATE upload_invites SET used_at = ?, r2_upload_key = ? WHERE token = ?"
-      ).bind(new Date().toISOString(), r2Key, token).run();
+        "UPDATE upload_invites SET used_at = ?, r2_upload_key = ?, consent_given_at = ?, referred_by = ? WHERE token = ?"
+      ).bind(now, r2Key, now, referredBy, token).run();
 
       return Response.json({ ok: true });
     }
@@ -157,12 +209,13 @@ export default {
       }
 
       const invite = await env.DB.prepare(
-        "SELECT used_at, deleted_at, mcp_url, mcp_token, payment_confirmed_at, upload_rejected_reason FROM upload_invites WHERE token = ?"
+        "SELECT used_at, deleted_at, mcp_url_public, mcp_url_private, mcp_token_private, payment_confirmed_at, upload_rejected_reason FROM upload_invites WHERE token = ?"
       ).bind(token).first<{
         used_at: string | null;
         deleted_at: string | null;
-        mcp_url: string | null;
-        mcp_token: string | null;
+        mcp_url_public: string | null;
+        mcp_url_private: string | null;
+        mcp_token_private: string | null;
         payment_confirmed_at: string | null;
         upload_rejected_reason: string | null;
       }>();
@@ -176,10 +229,15 @@ export default {
       if (invite.deleted_at) {
         return Response.json({ status: "deleted" });
       }
-      if (invite.mcp_url) {
-        // mcp_token is optional -- a server deployed unauthenticated for testing
-        // (matching the public demo's pattern) has none, and that's fine.
-        return Response.json({ status: "ready", mcp_url: invite.mcp_url, mcp_token: invite.mcp_token });
+      if (invite.mcp_url_public || invite.mcp_url_private) {
+        // Two tiers per customer: a shareable, unauthenticated "know-how card"
+        // (public) and a bearer-token-gated full-data server (private).
+        return Response.json({
+          status: "ready",
+          mcp_url_public: invite.mcp_url_public,
+          mcp_url_private: invite.mcp_url_private,
+          mcp_token_private: invite.mcp_token_private,
+        });
       }
       if (invite.payment_confirmed_at) {
         return Response.json({ status: "processing" });
@@ -252,10 +310,9 @@ export default {
       }
 
       const invite = await env.DB.prepare(
-        "SELECT r2_upload_key, customer_label, deleted_at, email FROM upload_invites WHERE token = ?"
+        "SELECT r2_upload_key, deleted_at, email FROM upload_invites WHERE token = ?"
       ).bind(token).first<{
         r2_upload_key: string | null;
-        customer_label: string | null;
         deleted_at: string | null;
         email: string | null;
       }>();
@@ -276,22 +333,29 @@ export default {
       }
 
       // Set deleted_at FIRST -- this is the actual kill switch. Every customer Worker
-      // checks this column before serving anything, so access is cut off the instant
-      // this write lands, independent of whether the R2 cleanup below succeeds.
-      // mcp_url/customer_label are kept (not nulled) so the weekly cleanup digest can
-      // still name which deployed Worker needs manual teardown. mcp_token IS cleared --
-      // the server-side data behind it is already gone, so the bearer token is dead
-      // weight with no reason to keep.
+      // checks this column (joined against subscribers by email, see
+      // mcp-customer-template/src/index.ts) before serving anything, so access is
+      // cut off the instant this write lands, independent of whether the R2 cleanup
+      // below succeeds. mcp_url_public/mcp_url_private are kept (not nulled) so the
+      // weekly cleanup digest can still name which deployed Workers need manual
+      // teardown. mcp_token_private IS cleared -- the server-side data behind it is
+      // already gone, so the bearer token is dead weight with no reason to keep.
       await env.DB.prepare(
-        "UPDATE upload_invites SET deleted_at = ?, deleted_by_email = ?, mcp_token = NULL, r2_upload_key = NULL WHERE token = ?"
+        "UPDATE upload_invites SET deleted_at = ?, deleted_by_email = ?, mcp_token_private = NULL, r2_upload_key = NULL WHERE token = ?"
       ).bind(new Date().toISOString(), enteredEmail, token).run();
 
+      // Slugs live on subscribers (keyed by email), not on upload_invites -- one
+      // invite row corresponds to a public+private slug pair, not a single
+      // customer_label, so both prefixes must be resolved via this join.
+      const slugs = await env.DB.prepare(
+        "SELECT public_slug, private_slug FROM subscribers WHERE email = ?"
+      ).bind(invite.email).first<{ public_slug: string | null; private_slug: string | null }>();
+
       const keysToDelete = [invite.r2_upload_key];
-      if (invite.customer_label) {
-        keysToDelete.push(
-          `customers/${invite.customer_label}/entries.json`,
-          `customers/${invite.customer_label}/embeddings.json`,
-        );
+      for (const slug of [slugs?.public_slug, slugs?.private_slug]) {
+        if (slug) {
+          keysToDelete.push(`customers/${slug}/entries.json`, `customers/${slug}/embeddings.json`);
+        }
       }
       await Promise.all(
         keysToDelete.filter((k): k is string => !!k).map((k) => env.STORAGE.delete(k))

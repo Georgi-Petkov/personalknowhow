@@ -22,8 +22,7 @@ jobs:
       - name: Send payment link email
         env:
           CF_API_TOKEN: ${{ secrets.CLOUDFLARE_D1_TOKEN }}
-          GMAIL_SENDER: ${{ secrets.GMAIL_USER }}
-          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           INVITE_TOKEN: ${{ inputs.token }}
           STRIPE_PAYMENT_LINK: ${{ secrets.STRIPE_PAYMENT_LINK }}
         run: python .github/scripts/send_payment_link.py

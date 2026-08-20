@@ -1,12 +1,10 @@
-name: Waitlist Digest
+name: Send Referral Notifications
 
 on:
-  schedule:
-    - cron: "0 8 * * *"
   workflow_dispatch:
 
 jobs:
-  digest:
+  notify:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -17,8 +15,8 @@ jobs:
 
       - run: pip install requests
 
-      - name: Query D1 and send digest
+      - name: Notify referral-credit beneficiaries
         env:
           CF_API_TOKEN: ${{ secrets.CLOUDFLARE_D1_TOKEN }}
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
-        run: python .github/scripts/waitlist_digest.py
+        run: python .github/scripts/send_referral_notifications.py

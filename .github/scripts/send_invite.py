@@ -1,18 +1,25 @@
 import os
-import smtplib
 import uuid
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
 
 import requests
 
 ACCOUNT_ID = "716dcf9e5806cc9dbb777e0b80bb236d"
 DATABASE_ID = "934afff4-c462-41b0-91ff-2232473c5286"
+SEND_AS = "PersonalKnowHow <office@personalknowhow.com>"
 
 CF_API_TOKEN = os.environ["CF_API_TOKEN"]
-GMAIL_SENDER = os.environ["GMAIL_SENDER"]
-GMAIL_APP_PASSWORD = os.environ["GMAIL_APP_PASSWORD"]
+RESEND_API_KEY = os.environ["RESEND_API_KEY"]
 REQUESTED_EMAIL = os.environ.get("INVITE_EMAIL", "").strip().lower()
+
+
+def send_email(to: str, subject: str, text: str) -> None:
+    response = requests.post(
+        "https://api.resend.com/emails",
+        headers={"Authorization": f"Bearer {RESEND_API_KEY}"},
+        json={"from": SEND_AS, "to": [to], "subject": subject, "text": text},
+        timeout=30,
+    )
+    response.raise_for_status()
 
 
 def d1_query(sql: str, params: list | None = None) -> list[dict]:
@@ -57,26 +64,21 @@ Thanks for your interest in PersonalKnowHow. Here's your personal upload link:
 
 {upload_url}
 
-Upload the zip file from LinkedIn's "Request my data" export (Settings & Privacy > Data
-privacy > Get a copy of your data). Once it's processed, you'll get your own MCP server you
-can connect to Claude to check your real background against any job posting or question --
-grounded in what you've actually done, not just what a resume claims.
+You'll need LinkedIn's own data export (a zip file) to upload -- step-by-step guide here,
+including a heads-up about the two emails LinkedIn sends (wait for the second one, it's the
+complete archive, not the fast partial one):
+
+https://personalknowhow.com/linkedin-data-export
+
+Once it's processed, you'll get your own MCP server you can connect to Claude to check your
+real background against any job posting or question -- grounded in what you've actually done,
+not just what a resume claims.
 
 This link is single-use and tied to this email address.
 
 Georgi
 """
 
-SEND_AS = "PersonalKnowHow <office@personalknowhow.com>"
-
-msg = MIMEMultipart("alternative")
-msg["Subject"] = "Your PersonalKnowHow upload link"
-msg["From"] = SEND_AS
-msg["To"] = email
-msg.attach(MIMEText(body, "plain", "utf-8"))
-
-with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
-    smtp.login(GMAIL_SENDER, GMAIL_APP_PASSWORD)
-    smtp.sendmail("office@personalknowhow.com", [email], msg.as_string())
+send_email(email, "Your PersonalKnowHow upload link", body)
 
 print(f"Invite sent to {email} (token {token})")

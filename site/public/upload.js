@@ -16,23 +16,20 @@ function showView(name) {
   views[name].hidden = false;
 }
 
-function renderReady(mcpUrl, mcpToken) {
-  document.getElementById("mcp-url-plain").textContent = mcpUrl;
-
+function mcpConfig(mcpUrl, mcpToken) {
   const args = ["mcp-remote", mcpUrl];
   const server = { command: "npx", args };
   if (mcpToken) {
     args.push("--header", "Authorization:${AUTH_HEADER}");
     server.env = { AUTH_HEADER: `Bearer ${mcpToken}` };
   }
-  const config = { mcpServers: { personalknowhow: server } };
-  document.getElementById("mcp-config").textContent = JSON.stringify(config, null, 2);
+  return JSON.stringify({ mcpServers: { personalknowhow: server } }, null, 2);
+}
 
-  // The Claude.ai web custom-connector form only takes a URL, no header field --
-  // it genuinely can't connect to a token-gated server, so don't show it as an option.
-  document.getElementById("mcp-web-section").hidden = !!mcpToken;
-  document.getElementById("mcp-web-unavailable-note").hidden = !mcpToken;
-  document.getElementById("mcp-auth-note").hidden = !!mcpToken;
+function renderReady(mcpUrlPublic, mcpUrlPrivate, mcpTokenPrivate) {
+  document.getElementById("mcp-config-private").textContent = mcpConfig(mcpUrlPrivate, mcpTokenPrivate);
+  document.getElementById("mcp-url-public").textContent = mcpUrlPublic;
+  document.getElementById("mcp-config-public").textContent = mcpConfig(mcpUrlPublic, null);
 }
 
 async function refreshStatus() {
@@ -59,7 +56,7 @@ async function refreshStatus() {
     } else if (data.status === "processing") {
       showView("processing");
     } else if (data.status === "ready") {
-      renderReady(data.mcp_url, data.mcp_token);
+      renderReady(data.mcp_url_public, data.mcp_url_private, data.mcp_token_private);
       showView("ready");
     } else if (data.status === "deleted") {
       showView("deleted");
@@ -73,6 +70,21 @@ async function refreshStatus() {
   }
 }
 
+function updateSubmitState() {
+  const form = document.getElementById("upload-form");
+  const hasFile = form.file.files.length > 0;
+  const hasConsent = form.consent.checked;
+  // type="email" gives us free format validation via the native constraint API --
+  // valid when empty (referred_by isn't required) or when it looks like an email.
+  const referredByOk = form.referred_by.checkValidity();
+  form.querySelector("button[type=submit]").disabled = !(hasFile && hasConsent && referredByOk);
+}
+
+const uploadForm = document.getElementById("upload-form");
+uploadForm.file.addEventListener("change", updateSubmitState);
+uploadForm.consent.addEventListener("change", updateSubmitState);
+uploadForm.referred_by.addEventListener("input", updateSubmitState);
+
 document.getElementById("upload-form").addEventListener("submit", async (event) => {
   event.preventDefault();
   const form = event.target;
@@ -83,6 +95,10 @@ document.getElementById("upload-form").addEventListener("submit", async (event) 
     status.textContent = "Choose a file first.";
     return;
   }
+  if (!form.consent.checked) {
+    status.textContent = "You need to accept the data-retention terms to upload.";
+    return;
+  }
 
   submitButton.disabled = true;
   status.textContent = "Uploading…";
@@ -90,6 +106,10 @@ document.getElementById("upload-form").addEventListener("submit", async (event) 
   try {
     const formData = new FormData();
     formData.append("file", file);
+    formData.append("consent", "true");
+    if (form.referred_by.value.trim()) {
+      formData.append("referred_by", form.referred_by.value.trim());
+    }
 
     const response = await fetch("/api/upload", {
       method: "POST",

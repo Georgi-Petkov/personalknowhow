@@ -1,16 +1,14 @@
 import os
-import smtplib
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
 
 import requests
 
 ACCOUNT_ID = "716dcf9e5806cc9dbb777e0b80bb236d"
 DATABASE_ID = "934afff4-c462-41b0-91ff-2232473c5286"
+SEND_AS = "PersonalKnowHow <office@personalknowhow.com>"
+ADMIN_EMAIL = "2georgipetkov@gmail.com"
 
 CF_API_TOKEN = os.environ["CF_API_TOKEN"]
-GMAIL_SENDER = os.environ["GMAIL_SENDER"]
-GMAIL_APP_PASSWORD = os.environ["GMAIL_APP_PASSWORD"]
+RESEND_API_KEY = os.environ["RESEND_API_KEY"]
 
 response = requests.post(
     f"https://api.cloudflare.com/client/v4/accounts/{ACCOUNT_ID}/d1/database/{DATABASE_ID}/query",
@@ -43,14 +41,17 @@ for row in rows:
     lines.append(line)
 body = f"{len(rows)} new waitlist signup(s) in the last 24h:\n\n" + "\n".join(lines)
 
-msg = MIMEMultipart("alternative")
-msg["Subject"] = f"PersonalKnowHow: {len(rows)} new waitlist signup(s)"
-msg["From"] = GMAIL_SENDER
-msg["To"] = GMAIL_SENDER
-msg.attach(MIMEText(body, "plain", "utf-8"))
+response = requests.post(
+    "https://api.resend.com/emails",
+    headers={"Authorization": f"Bearer {RESEND_API_KEY}"},
+    json={
+        "from": SEND_AS,
+        "to": [ADMIN_EMAIL],
+        "subject": f"PersonalKnowHow: {len(rows)} new waitlist signup(s)",
+        "text": body,
+    },
+    timeout=30,
+)
+response.raise_for_status()
 
-with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
-    smtp.login(GMAIL_SENDER, GMAIL_APP_PASSWORD)
-    smtp.sendmail(GMAIL_SENDER, [GMAIL_SENDER], msg.as_string())
-
-print(f"Sent digest for {len(rows)} new signup(s) to {GMAIL_SENDER}")
+print(f"Sent digest for {len(rows)} new signup(s) to {ADMIN_EMAIL}")
