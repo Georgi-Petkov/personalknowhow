@@ -51,3 +51,5 @@ linkedin/CONTENT_STRATEGY.md
 linkedin/POSTING_RULES.md
 linkedin/PKH_LAUNCH_CAMPAIGN.md
 CLAUDE.md
+query_claudflare.ipynb
+ingest/query_mcp_usage.py
