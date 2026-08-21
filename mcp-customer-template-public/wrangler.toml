@@ -17,3 +17,6 @@ binding = "MCP_USAGE"
 dataset = "mcp_usage"
 
 # No PRIVATE_MCP_TOKEN, no Authorization check -- public tier is unauthenticated by design.
+
+[observability]
+enabled = true
