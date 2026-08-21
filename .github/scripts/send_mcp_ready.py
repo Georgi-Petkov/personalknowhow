@@ -65,38 +65,47 @@ def mcp_config(url: str, token: str | None) -> str:
     return json.dumps({"mcpServers": {"personalknowhow": server}}, indent=2)
 
 
-private_block = f"""PRIVATE -- your full data (requires the login token below):
-
-In Claude Desktop, add this to your claude_desktop_config.json, then restart:
-
-{mcp_config(mcp_url_private, mcp_token_private)}
-
-(Claude.ai's web custom-connector form has no field for a login token, so this one can't be
-added there -- use Claude Desktop.)
-""" if mcp_url_private else ""
-
 public_block = f"""PUBLIC -- shareable know-how card, no login needed (excludes job-search
 activity, share only with who you intend to use it):
 
-In Claude.ai (web): Settings -> Connectors -> Add custom connector, then paste this URL:
+In Claude.ai (web or desktop): Settings -> Connectors -> Add custom connector, then paste this
+URL:
 {mcp_url_public}
 
-In Claude Desktop:
+Alternative (Claude Desktop config file, see path below):
 {mcp_config(mcp_url_public, None)}
 """ if mcp_url_public else ""
+
+private_block = f"""PRIVATE -- your full data (requires the login token below):
+
+Claude's "Add custom connector" form has no field for a login token, so this one has to go
+through Claude Desktop's config file instead:
+
+1. Open this file (create it if it doesn't exist yet):
+   ~/Library/Application Support/Claude/claude_desktop_config.json
+   On Mac this folder is hidden by default -- in Finder press Cmd+Shift+G and paste that path,
+   or use your text editor's Open dialog and paste the path directly into the filename field.
+   (Windows: %APPDATA%\\Claude\\claude_desktop_config.json)
+2. Add this under "mcpServers" (merge it in if the file already has other servers):
+
+{mcp_config(mcp_url_private, mcp_token_private)}
+
+3. Save the file, fully quit Claude Desktop (Cmd+Q -- closing the window isn't enough), then
+   reopen it.
+""" if mcp_url_private else ""
 
 body = f"""Hi,
 
 Your PersonalKnowHow MCP server(s) are ready.
 
-{private_block}
 {public_block}
+{private_block}
 Once connected, ask it anything about your real, uploaded background -- job postings, skills,
 "do I have experience with X."
 
 Georgi
 """
 
-send_email(email, "Your PersonalKnowHow MCP server is ready", body)
+send_email(email, "Your PersonalKnowHow MCP server(s) are ready", body)
 
 print(f"MCP-ready email sent to {email} (token {TOKEN})")
