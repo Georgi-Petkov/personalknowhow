@@ -25,6 +25,76 @@ interface Entry {
 interface Env {
   AI: Ai;
   PRIVATE_MCP_TOKEN: string;
+  MCP_USAGE: AnalyticsEngineDataset;
+}
+
+const WORKER_TYPE = "private";
+
+// Peeks at the JSON-RPC envelope for usage analytics only (method, tool name,
+// connecting client) -- never touches the real request, which is handed to
+// createMcpHandler unread. Never throws: malformed/absent bodies just mean no
+// method-level breakdown for that request, not a failed request.
+async function peekRequest(request: Request) {
+  try {
+    const body = (await request.clone().json()) as {
+      method?: string;
+      params?: { name?: string; clientInfo?: { name?: string; version?: string } };
+    };
+    const method = typeof body.method === "string" ? body.method : null;
+    return {
+      method,
+      toolName: method === "tools/call" && typeof body.params?.name === "string" ? body.params.name : null,
+      clientName: method === "initialize" ? body.params?.clientInfo?.name ?? null : null,
+      clientVersion: method === "initialize" ? body.params?.clientInfo?.version ?? null : null,
+    };
+  } catch {
+    return { method: null, toolName: null, clientName: null, clientVersion: null };
+  }
+}
+
+// Best-effort success/error classification. MCP tool errors are usually
+// HTTP 200 with an `error` or `isError` field inside the JSON-RPC body, not an
+// HTTP-level failure -- but only for a non-streamed JSON response; a
+// text/event-stream body is left untouched so this never buffers or delays a
+// streamed response.
+async function classifyStatus(response: Response): Promise<"success" | "error"> {
+  if (response.status >= 400) return "error";
+  if (response.headers.get("content-type")?.includes("application/json")) {
+    try {
+      const body = (await response.clone().json()) as { error?: unknown; result?: { isError?: boolean } };
+      if (body.error || body.result?.isError === true) return "error";
+    } catch {
+      // Not parseable JSON -- fall through to HTTP-status-based success.
+    }
+  }
+  return "success";
+}
+
+// Metadata only -- no tool arguments, no response content, no query text.
+// Matches the privacy discipline already applied to public/private exports
+// elsewhere in this repo.
+async function logUsage(
+  env: Env,
+  opts: { customerId: string; startedAt: number; peek: Awaited<ReturnType<typeof peekRequest>>; response: Response },
+) {
+  try {
+    const status = await classifyStatus(opts.response);
+    env.MCP_USAGE.writeDataPoint({
+      indexes: [`${WORKER_TYPE}:${opts.customerId}`],
+      blobs: [
+        WORKER_TYPE,
+        opts.customerId,
+        opts.peek.method ?? "",
+        opts.peek.toolName ?? "",
+        opts.peek.clientName ?? "",
+        opts.peek.clientVersion ?? "",
+        status,
+      ],
+      doubles: [Date.now() - opts.startedAt],
+    });
+  } catch {
+    // Analytics must never break or delay the real response.
+  }
 }
 
 const EMBEDDING_MODEL = "@cf/baai/bge-base-en-v1.5";
@@ -167,12 +237,18 @@ function createServer(env: Env) {
 }
 
 export default {
-  fetch(request: Request, env: Env, ctx: ExecutionContext) {
+  async fetch(request: Request, env: Env, ctx: ExecutionContext) {
+    const startedAt = Date.now();
+    const peek = await peekRequest(request);
+
     const expected = `Bearer ${env.PRIVATE_MCP_TOKEN}`;
     const provided = request.headers.get("Authorization") || "";
-    if (!env.PRIVATE_MCP_TOKEN || !timingSafeEqual(provided, expected)) {
-      return new Response("Unauthorized", { status: 401 });
-    }
-    return createMcpHandler(() => createServer(env))(request, env, ctx);
+    const response =
+      !env.PRIVATE_MCP_TOKEN || !timingSafeEqual(provided, expected)
+        ? new Response("Unauthorized", { status: 401 })
+        : await createMcpHandler(() => createServer(env))(request, env, ctx);
+
+    ctx.waitUntil(logUsage(env, { customerId: "n/a", startedAt, peek, response }));
+    return response;
   },
 } satisfies ExportedHandler<Env>;

@@ -7,4 +7,10 @@ compatibility_flags = ["nodejs_compat"]
 binding = "AI"
 remote = true
 
+# Same shared dataset as mcp/ and mcp-customer-template/ -- see that file's
+# wrangler.toml comment for why one dataset instead of one per Worker.
+[[analytics_engine_datasets]]
+binding = "MCP_USAGE"
+dataset = "mcp_usage"
+
 # PRIVATE_MCP_TOKEN is set via `wrangler secret put PRIVATE_MCP_TOKEN` -- never here.

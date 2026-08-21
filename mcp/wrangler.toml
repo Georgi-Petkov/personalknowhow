@@ -7,6 +7,15 @@ compatibility_flags = ["nodejs_compat"]
 binding = "AI"
 remote = true
 
+# Same shared dataset as mcp-private/ and mcp-customer-template/ -- see
+# mcp-customer-template/wrangler.toml's comment for why one dataset instead of
+# one per Worker. This is the public, unauthenticated demo -- the whole point
+# of adding this here is visibility into who besides the account owner has
+# ever connected to it.
+[[analytics_engine_datasets]]
+binding = "MCP_USAGE"
+dataset = "mcp_usage"
+
 # The previous McpAgent-based deploy (2026-08-04/05) used a Durable Object
 # class "DemoCard" for stateful sessions. This rewrite uses the stateless
 # createMcpHandler instead, which needs no Durable Object at all -- this

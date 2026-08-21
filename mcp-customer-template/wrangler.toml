@@ -12,4 +12,13 @@ binding = "DB"
 database_name = "personalknowhow-waitlist"
 database_id = "934afff4-c462-41b0-91ff-2232473c5286"
 
+# Shared across every deployed Worker (this template, mcp/, mcp-private/) -- one
+# dataset, not one per customer. A dataset binding is just a name, the same way
+# every customer clone already shares the DB binding above; each data point
+# carries worker_type + customer_id so cross-customer/cross-worker breakdowns
+# are a single SQL GROUP BY instead of N per-Worker dashboards.
+[[analytics_engine_datasets]]
+binding = "MCP_USAGE"
+dataset = "mcp_usage"
+
 # PRIVATE_MCP_TOKEN is set via `wrangler secret put PRIVATE_MCP_TOKEN` -- never here.

@@ -1,0 +1,19 @@
+name = "personalknowhow-CHANGE_ME"
+main = "src/index.ts"
+compatibility_date = "2026-08-08"
+compatibility_flags = ["nodejs_compat"]
+
+[ai]
+binding = "AI"
+remote = true
+
+[[d1_databases]]
+binding = "DB"
+database_name = "personalknowhow-waitlist"
+database_id = "934afff4-c462-41b0-91ff-2232473c5286"
+
+[[analytics_engine_datasets]]
+binding = "MCP_USAGE"
+dataset = "mcp_usage"
+
+# No PRIVATE_MCP_TOKEN, no Authorization check -- public tier is unauthenticated by design.
