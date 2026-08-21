@@ -17,6 +17,16 @@ database_id = "934afff4-c462-41b0-91ff-2232473c5286"
 binding = "STORAGE"
 bucket_name = "personalknowhow-storage"
 
+# Separate dataset from mcp/mcp-private/mcp-customer-template's "mcp_usage" --
+# that one is MCP tool-call traffic, this is marketing-site engagement
+# (CTA clicks). Different concern, own dataset.
+[[analytics_engine_datasets]]
+binding = "SITE_EVENTS"
+dataset = "site_events"
+
 [[routes]]
 pattern = "personalknowhow.com"
 custom_domain = true
+
+[observability]
+enabled = true

@@ -4,7 +4,14 @@ export interface Env {
   STORAGE: R2Bucket;
   STRIPE_WEBHOOK_SECRET: string;
   SLUG_HMAC_KEY: string;
+  SITE_EVENTS: AnalyticsEngineDataset;
 }
+
+// Allowlist, not free text -- keeps the dataset from filling up with
+// arbitrary strings if the endpoint is ever hit directly instead of through
+// a real button. Add an entry here whenever a new data-track attribute is
+// added in index.html.
+const TRACKABLE_EVENTS = new Set(["cta_waitlist_hero", "cta_demo_hero"]);
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -60,8 +67,37 @@ async function verifyStripeSignature(payload: string, header: string, secret: st
 }
 
 export default {
-  async fetch(request: Request, env: Env): Promise<Response> {
+  async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
+
+    if (url.pathname === "/api/track" && request.method === "POST") {
+      // sendBeacon posts as text/plain, not application/json -- read as text
+      // and parse manually rather than request.json(), which would reject it.
+      let eventName: unknown;
+      try {
+        eventName = (JSON.parse(await request.text()) as { event?: unknown }).event;
+      } catch {
+        return new Response(null, { status: 204 });
+      }
+      if (typeof eventName === "string" && TRACKABLE_EVENTS.has(eventName)) {
+        // Mirrored into Workers Logs, not just Analytics Engine -- same reason
+        // as mcp/src/index.ts's logUsage: Analytics Engine is SQL-API-only
+        // (needs an account-scoped API token to query), while Workers Logs is
+        // queryable through the account's existing Observability access with
+        // no separate token.
+        console.log({ event: eventName });
+        ctx.waitUntil(
+          (async () => {
+            try {
+              env.SITE_EVENTS.writeDataPoint({ indexes: [eventName as string], blobs: [eventName as string] });
+            } catch {
+              // Analytics must never break the page.
+            }
+          })(),
+        );
+      }
+      return new Response(null, { status: 204 });
+    }
 
     if (url.pathname === "/api/stripe-webhook" && request.method === "POST") {
       const signatureHeader = request.headers.get("Stripe-Signature") ?? "";
