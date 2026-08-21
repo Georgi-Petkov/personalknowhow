@@ -38,6 +38,7 @@ MAX_TEXT_CHARS = 1800  # ~450 tokens headroom under bge-base's 512 max
 
 sys.path.insert(0, str(Path(__file__).parent))
 from merge import parse_file  # noqa: E402
+from common import SOURCE_NOTE_BY_TYPE, DEFAULT_SOURCE_NOTE  # noqa: E402
 
 # Prefix -> output type. "linkedin" is deliberately never used as a bare key
 # -- that would also match linkedin/job_applications/ and
@@ -81,7 +82,9 @@ ALLOWLIST: dict[str, str] = {
 # assessment, not completing a course -- exactly the distinction that
 # motivated adding them in the first place. Overridden via node_raw_type()
 # below rather than a folder split, since both types share corpus/datacamp/.
-TYPE_OVERRIDES_BY_RAW_TYPE = {"skill_assessment"}
+# "track" (added 2026-08-17) is the same situation: a DataCamp Track bundles
+# multiple courses and is a distinct credential from any single course in it.
+TYPE_OVERRIDES_BY_RAW_TYPE = {"skill_assessment", "track"}
 SENSITIVE_SUBSTRINGS = ["job_applications", "career_interests", "job_search_tracker", "master_cv"]
 
 
@@ -114,6 +117,25 @@ def node_tags(node_id: str, links: list[dict]) -> list[str]:
         if tag_id:
             tags.add(tag_id.removeprefix("tag_").replace("_", "-"))
     return sorted(tags)
+
+
+def node_provider(node_id: str, nodes_by_id: dict[str, dict], links: list[dict]) -> str | None:
+    # Follows the same provided_by edge build_graph.py already writes, to the
+    # provider_* node's real (un-slugged) label -- e.g. "DataCamp", not
+    # "provider_datacamp". Direction isn't canonicalized for provided_by the
+    # way it is for tagged_with (build_graph.py always writes source=content
+    # node, target=provider node), but check both sides defensively anyway,
+    # matching node_tags()'s own caution about graphifyy's edge direction.
+    for edge in links:
+        if edge.get("relation") != "provided_by":
+            continue
+        src, tgt = str(edge.get("source", "")), str(edge.get("target", ""))
+        if node_id not in (src, tgt):
+            continue
+        prov_id = tgt if tgt.startswith("provider_") else (src if src.startswith("provider_") else None)
+        if prov_id and prov_id in nodes_by_id:
+            return nodes_by_id[prov_id].get("label")
+    return None
 
 
 def node_raw_type(node_id: str, links: list[dict]) -> str | None:
@@ -157,6 +179,7 @@ def build_text(label: str, type_: str, tags: list[str], description: str) -> str
 def build_entries() -> list[dict]:
     graph = json.loads(GRAPH_JSON.read_text(encoding="utf-8"))
     links = graph.get("links", [])
+    nodes_by_id = {str(n.get("id", "")): n for n in graph.get("nodes", [])}
     entries = []
     mismatches = []
     for node in graph.get("nodes", []):
@@ -175,6 +198,7 @@ def build_entries() -> list[dict]:
             type_ = raw_type
         tags = node_tags(node_id, links)
         description = load_description(source_file)
+        source_url = node.get("source_url")
         entries.append({
             "id": node_id,
             "label": node.get("label", ""),
@@ -182,6 +206,10 @@ def build_entries() -> list[dict]:
             "type": type_,
             "tags": tags,
             "description": description,
+            "source_url": source_url,
+            "captured_at": node.get("captured_at"),
+            "provider": node_provider(node_id, nodes_by_id, links),
+            "source_note": None if source_url else SOURCE_NOTE_BY_TYPE.get(type_, DEFAULT_SOURCE_NOTE),
             "text": build_text(node.get("label", ""), type_, tags, description),
         })
 

@@ -31,7 +31,8 @@ NUM = r"\d{1,3}(?:[,.\s]\d{3})+(?:\.\d{2})?|\d+"
 def numk(i: str) -> str:
     return rf"(?P<n{i}>{NUM})\s?(?P<k{i}>[Kk])?"
 
-PER = r"/\s?(?:yr|year|md|month)|per\s+(?:year|month)|annually|annual|monthly"
+PER = (r"/\s?(?:yr|year|md|month|wk|week)|per\s+(?:year|month|week)"
+       r"|annually|annual|monthly|weekly")
 SEP = r"-|–|—|to"
 QUAL_MAX = r"up\s+to|max(?:imum)?"
 QUAL_MIN = r"from|min(?:imum)?|starting\s+(?:at|from)"
@@ -126,7 +127,9 @@ def _try_range(pattern: re.Pattern, text: str) -> dict | None:
         if lo < MIN_PLAUSIBLE:
             continue
         per_raw = (m.group("per1") or m.group("per2") or "").lower()
-        if "month" in per_raw or per_raw == "/md":
+        if "week" in per_raw or per_raw == "/wk":
+            period, period_conf = "weekly", "explicit"
+        elif "month" in per_raw or per_raw == "/md":
             period, period_conf = "monthly", "explicit"
         elif per_raw:
             period, period_conf = "annual", "explicit"
@@ -155,7 +158,9 @@ def _try_single(text: str) -> dict | None:
         if val < MIN_PLAUSIBLE:
             continue
         per_raw = (m.group("per1") or "").lower()
-        if "month" in per_raw or per_raw == "/md":
+        if "week" in per_raw or per_raw == "/wk":
+            period, period_conf = "weekly", "explicit"
+        elif "month" in per_raw or per_raw == "/md":
             period, period_conf = "monthly", "explicit"
         elif per_raw:
             period, period_conf = "annual", "explicit"
@@ -193,7 +198,7 @@ def to_annual_dkk(parsed: dict) -> tuple[float | None, float | None] | None:
     rate = FX_TO_DKK.get(parsed["currency"])
     if rate is None:
         return None
-    mult = 12 if parsed["period"] == "monthly" else 1
+    mult = {"monthly": 12, "weekly": 52}.get(parsed["period"], 1)
 
     def conv(v: float | None) -> float | None:
         return None if v is None else v * mult * rate
@@ -211,6 +216,7 @@ _GROUND_TRUTH = [
     ("40K DKK/month - 50K DKK/month", (40000, 50000, "DKK", "monthly", "explicit")),
     ("DKK40-45K per month", (40000, 45000, "DKK", "monthly", "explicit")),
     ("650,960.00 to 956,860.00 DKK", (650960, 956860, "DKK", "annual", "inferred")),
+    ("$80/hr, up to $1,600/week", (None, 1600, "USD", "weekly", "explicit")),
 ]
 
 

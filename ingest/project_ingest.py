@@ -178,6 +178,19 @@ def ingest_repo(repo: Path) -> dict | None:
     tracked = _run(["git", "ls-files"], repo)
     filenames_blob = tracked.replace("/", " ").replace("_", " ").replace(".", " ")
 
+    # .github/workflows/*.yml etc. is unambiguous structural CI/CD evidence,
+    # but tokenizing the path (above) splits it into disconnected words
+    # ("github", "workflows", "deploy", "yml") that never reassemble into the
+    # literal "github actions" phrase TAG_PATTERNS' ci-cd entry requires --
+    # so real, wired-up CI (e.g. MyHealthData's 4 workflow files) went
+    # undetected unless the README also happened to say "CI/CD" in prose.
+    # Detect the marker files directly instead of relying on that coincidence.
+    ci_cd_markers = (
+        ".github/workflows/", ".gitlab-ci.yml", ".circleci/config.yml",
+        "Jenkinsfile", "azure-pipelines.yml",
+    )
+    has_ci_cd_config = any(m in tracked for m in ci_cd_markers)
+
     grep_hits = []
     for kw in GREP_KEYWORDS:
         out = _run(
@@ -187,8 +200,13 @@ def ingest_repo(repo: Path) -> dict | None:
         )
         if out.strip():
             grep_hits.append(kw)
+    if has_ci_cd_config:
+        grep_hits.append("ci-cd-config")
 
-    evidence = " ".join([readme_text, filenames_blob, " ".join(grep_hits)])
+    evidence = " ".join([
+        readme_text, filenames_blob, " ".join(grep_hits),
+        "github actions ci/cd" if has_ci_cd_config else "",
+    ])
     tags = infer_tags(evidence)
 
     readme_first_line = next(

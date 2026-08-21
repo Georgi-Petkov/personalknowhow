@@ -11,6 +11,15 @@ interface Entry {
   type: string;
   tags: string[];
   description: string;
+  // Real evidence backing this entry, for answering a disputed claim while
+  // the account is active -- see ingest/build_graph.py's URL_FIELD_PRIORITY
+  // and ingest/common.py's SOURCE_NOTE_BY_TYPE. source_url/captured_at are
+  // null when the underlying corpus source genuinely has none (e.g. LinkedIn
+  // endorsements never carry a link); source_note explains why in that case.
+  source_url: string | null;
+  captured_at: string | null;
+  provider: string | null;
+  source_note: string | null;
 }
 
 interface Env {
@@ -100,7 +109,11 @@ function createServer(env: Env) {
         "or 'how many X' questions, use list_by_type instead -- it returns the complete, " +
         "uncapped set with no similarity ranking involved. Clearing the similarity floor " +
         "means 'closest available match', not 'confirmed match' -- read each result's actual " +
-        "label/description/type before citing it as evidence for the specific topic queried.",
+        "label/description/type before citing it as evidence for the specific topic queried. " +
+        "Each result also carries source_url/captured_at/provider (the real evidence behind " +
+        "it, when available) and source_note (explaining why not, when the underlying source " +
+        "has no link) -- use these to answer a disputed claim with actual backing evidence " +
+        "rather than just the description text.",
       inputSchema: { topic: z.string().describe("A skill, technology, or topic to check, e.g. 'django' or 'aws'") },
     },
     async ({ topic }) => {
@@ -160,9 +173,20 @@ export default {
     // bundle at deploy time (static import above) -- deleting the R2 source has no
     // effect on it, so this D1 read is the only thing that can actually revoke
     // access after a "delete my data" request. See site/'s /api/delete-data.
+    //
+    // Joined through subscribers on email: CUSTOMER_LABEL is a per-tier slug
+    // (subscribers.public_slug or .private_slug), never upload_invites.customer_label
+    // directly -- one invite row covers two slugs (public+private), so a single
+    // customer_label column can't identify which Worker this is. (Found live
+    // 2026-08-16: the customer_label-keyed query never matched any row for the
+    // real slug-based deploys, meaning this gate silently failed OPEN -- no row
+    // found, so neither the deleted_at nor subscription_status check ever fired.)
     const row = await env.DB.prepare(
-      "SELECT deleted_at, subscription_status FROM upload_invites WHERE customer_label = ?"
-    ).bind(CUSTOMER_LABEL).first<{ deleted_at: string | null; subscription_status: string | null }>();
+      `SELECT ui.deleted_at, ui.subscription_status
+       FROM upload_invites ui
+       JOIN subscribers s ON s.email = ui.email
+       WHERE s.public_slug = ? OR s.private_slug = ?`
+    ).bind(CUSTOMER_LABEL, CUSTOMER_LABEL).first<{ deleted_at: string | null; subscription_status: string | null }>();
     if (row?.deleted_at) {
       return new Response("This data has been deleted.", { status: 410 });
     }

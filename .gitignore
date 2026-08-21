@@ -35,6 +35,10 @@ cv/
 # Local tool caches / session dumps
 .playwright-mcp/
 .claude/
+Claude connects to PersonalKnowHow/
+
+# Live credential files — never commit, this repo is public
+connector/linkedin_token.json
 
 # PII documents
 *.pdf

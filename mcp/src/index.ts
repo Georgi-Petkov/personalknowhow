@@ -11,6 +11,15 @@ interface Entry {
   type: string;
   tags: string[];
   description: string;
+  // Real evidence backing this entry, for answering a disputed claim while
+  // the account is active -- see ingest/build_graph.py's URL_FIELD_PRIORITY
+  // and ingest/common.py's SOURCE_NOTE_BY_TYPE. source_url/captured_at are
+  // null when the underlying corpus source genuinely has none (e.g. LinkedIn
+  // endorsements never carry a link); source_note explains why in that case.
+  source_url: string | null;
+  captured_at: string | null;
+  provider: string | null;
+  source_note: string | null;
 }
 
 interface Env {
@@ -79,7 +88,11 @@ function createServer(env: Env) {
         "the complete, uncapped set with no similarity ranking involved. Clearing the " +
         "similarity floor means 'closest available match', not 'confirmed match' -- read " +
         "each result's actual label/description/type before citing it as evidence for the " +
-        "specific topic queried. Embeddings can rank a topically-adjacent-but-wrong entry " +
+        "specific topic queried. Each result also carries source_url/captured_at/provider " +
+        "(the real evidence behind it, when available) and source_note (explaining why not, " +
+        "when the underlying source has no link) -- use these to answer a disputed claim with " +
+        "actual backing evidence rather than just the description text. Embeddings can rank " +
+        "a topically-adjacent-but-wrong entry " +
         "above the floor (e.g. a course on a different cloud data-warehouse tool, or a " +
         "different framework in the same category) for a term it isn't actually about; if a " +
         "result isn't genuinely on topic, treat the query as unmatched rather than reporting " +

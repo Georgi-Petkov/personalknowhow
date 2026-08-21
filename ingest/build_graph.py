@@ -45,6 +45,22 @@ def _slug(text: str) -> str:
     return re.sub(r"[^a-z0-9_]", "_", text.lower()).strip("_")
 
 
+# Ordered by evidentiary strength: an accomplishment/certificate/credential URL
+# proves completion; a bare course_url/repo_url just proves the thing exists,
+# not that it was finished. repo_path (corpus/projects/*.md) is deliberately
+# excluded -- it's a local filesystem path (e.g. "/Users/g/Documents/Projects/X"),
+# not a shareable URL, and would leak local folder structure if ever exposed
+# through a public MCP query result.
+URL_FIELD_PRIORITY = ["accomplishment_url", "certificate_url", "credential_url", "course_url", "repo_url"]
+
+
+def _pick_source_url(fm: dict) -> str | None:
+    for field in URL_FIELD_PRIORITY:
+        if fm.get(field):
+            return str(fm[field])
+    return None
+
+
 def extract_from_corpus(corpus: Path) -> dict:
     """
     Walk corpus/ for *.md files with YAML frontmatter.
@@ -61,7 +77,7 @@ def extract_from_corpus(corpus: Path) -> dict:
     edges: list[dict] = []
     seen: set[str] = set()
 
-    def add_node(node_id: str, label: str, source_file: str, captured_at=None) -> None:
+    def add_node(node_id: str, label: str, source_file: str, captured_at=None, source_url=None) -> None:
         if node_id not in seen:
             seen.add(node_id)
             nodes.append({
@@ -70,7 +86,7 @@ def extract_from_corpus(corpus: Path) -> dict:
                 "file_type": "document",
                 "source_file": source_file,
                 "source_location": None,
-                "source_url": None,
+                "source_url": source_url,
                 "captured_at": captured_at,
                 "author": None,
                 "contributor": None,
@@ -100,7 +116,11 @@ def extract_from_corpus(corpus: Path) -> dict:
 
         rel = str(md_file.relative_to(corpus))
         node_id = _slug(md_file.stem)
-        add_node(node_id, title, rel, captured_at=str(fm.get("date", "")) or None)
+        add_node(
+            node_id, title, rel,
+            captured_at=str(fm.get("date", "")) or None,
+            source_url=_pick_source_url(fm),
+        )
 
         for tag in fm.get("domain_tags") or []:
             tag_id = "tag_" + _slug(str(tag))

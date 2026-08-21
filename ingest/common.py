@@ -295,11 +295,29 @@ DEMONSTRATED_TYPES = {
     "course", "project", "certification", "education", "position", "profile",
     "recommendation", "article", "endorsement", "organization", "language",
     "honor", "publication", "patent", "volunteering", "test_score",
-    "skill_assessment",
+    "skill_assessment", "track",
 }
 
 SIM_FLOOR = 0.65        # "known" -- same floor validated live against this model/corpus
 PERIPHERAL_FLOOR = 0.50  # "peripheral" -- related but not solid coverage
+
+# Human-readable explanation shown in place of a source_url when a node's
+# type has no real URL field in its corpus frontmatter (confirmed empty for
+# these types across every ingest script) -- so a disputed claim gets an
+# honest "here's why there's no link" instead of silence. Shared by
+# build_public_export.py and build_private_export.py's build_entries().
+SOURCE_NOTE_BY_TYPE = {
+    "endorsement": "LinkedIn peer endorsement — LinkedIn's export doesn't include a direct "
+                    "link to the endorsement or endorser.",
+    "position": "LinkedIn work-history entry — LinkedIn's export doesn't include a direct link "
+                "to the position listing.",
+    "recommendation": "LinkedIn peer recommendation — LinkedIn's export doesn't include a "
+                       "direct link to the recommendation.",
+    "education": "LinkedIn education entry — LinkedIn's export doesn't include a direct link "
+                 "to the school/program listing.",
+    "profile": "LinkedIn profile summary — not a linkable item on its own.",
+}
+DEFAULT_SOURCE_NOTE = "No direct source link available for this entry."
 
 
 def _b64_to_vec(b64: str) -> list[float]:

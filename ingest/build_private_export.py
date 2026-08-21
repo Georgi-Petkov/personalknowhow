@@ -33,6 +33,7 @@ MAX_TEXT_CHARS = 1800
 
 sys.path.insert(0, str(Path(__file__).parent))
 from merge import parse_file  # noqa: E402
+from common import SOURCE_NOTE_BY_TYPE, DEFAULT_SOURCE_NOTE  # noqa: E402
 
 # Same folder->type mapping as build_public_export.py's ALLOWLIST, but this
 # script has no exclusions -- career_interests/job_applications get their own
@@ -67,7 +68,24 @@ TYPE_MAP: dict[str, str] = {
 # entries (DataCamp Skill Assessments, added 2026-08-10) live in that same
 # folder and represent passing an assessment, not completing a course --
 # overridden via each node's real frontmatter type instead of a folder split.
-TYPE_OVERRIDES_BY_RAW_TYPE = {"skill_assessment"}
+# "track" (added 2026-08-17) is the same situation: a DataCamp Track bundles
+# multiple courses and is a distinct credential from any single course in it.
+TYPE_OVERRIDES_BY_RAW_TYPE = {"skill_assessment", "track"}
+
+
+def node_provider(node_id: str, nodes_by_id: dict[str, dict], links: list[dict]) -> str | None:
+    # Same as build_public_export.py's node_provider -- follows provided_by to
+    # the provider_* node's real (un-slugged) label, e.g. "DataCamp".
+    for edge in links:
+        if edge.get("relation") != "provided_by":
+            continue
+        src, tgt = str(edge.get("source", "")), str(edge.get("target", ""))
+        if node_id not in (src, tgt):
+            continue
+        prov_id = tgt if tgt.startswith("provider_") else (src if src.startswith("provider_") else None)
+        if prov_id and prov_id in nodes_by_id:
+            return nodes_by_id[prov_id].get("label")
+    return None
 
 
 def node_raw_type(node_id: str, links: list[dict]) -> str | None:
@@ -135,6 +153,7 @@ def build_text(label: str, type_: str, tags: list[str], description: str) -> str
 def build_entries() -> list[dict]:
     graph = json.loads(GRAPH_JSON.read_text(encoding="utf-8"))
     links = graph.get("links", [])
+    nodes_by_id = {str(n.get("id", "")): n for n in graph.get("nodes", [])}
     content_nodes = [
         n for n in graph.get("nodes", [])
         if not str(n.get("id", "")).startswith(("tag_", "provider_", "type_"))
@@ -153,6 +172,7 @@ def build_entries() -> list[dict]:
             type_ = raw_type
         tags = node_tags(node_id, links)
         description = load_description(source_file)
+        source_url = node.get("source_url")
         entries.append({
             "id": node_id,
             "label": node.get("label", ""),
@@ -160,6 +180,10 @@ def build_entries() -> list[dict]:
             "type": type_,
             "tags": tags,
             "description": description,
+            "source_url": source_url,
+            "captured_at": node.get("captured_at"),
+            "provider": node_provider(node_id, nodes_by_id, links),
+            "source_note": None if source_url else SOURCE_NOTE_BY_TYPE.get(type_, DEFAULT_SOURCE_NOTE),
             "text": build_text(node.get("label", ""), type_, tags, description),
         })
 
