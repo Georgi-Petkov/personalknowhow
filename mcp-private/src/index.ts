@@ -79,6 +79,22 @@ async function logUsage(
 ) {
   try {
     const status = await classifyStatus(opts.response);
+    const latencyMs = Date.now() - opts.startedAt;
+    // Same fields as the Analytics Engine write below, also surfaced as a
+    // structured Workers Logs entry -- unlike Analytics Engine (SQL API only,
+    // no dashboard table), Workers Logs' account-level Observability page can
+    // show these across every deployed Worker in one filterable table, no API
+    // token needed.
+    console.log({
+      worker_type: WORKER_TYPE,
+      customer_id: opts.customerId,
+      method: opts.peek.method ?? "",
+      tool_name: opts.peek.toolName ?? "",
+      client_name: opts.peek.clientName ?? "",
+      client_version: opts.peek.clientVersion ?? "",
+      status,
+      latency_ms: latencyMs,
+    });
     env.MCP_USAGE.writeDataPoint({
       indexes: [`${WORKER_TYPE}:${opts.customerId}`],
       blobs: [
@@ -90,7 +106,7 @@ async function logUsage(
         opts.peek.clientVersion ?? "",
         status,
       ],
-      doubles: [Date.now() - opts.startedAt],
+      doubles: [latencyMs],
     });
   } catch {
     // Analytics must never break or delay the real response.

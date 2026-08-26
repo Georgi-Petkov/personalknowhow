@@ -24,3 +24,6 @@ dataset = "mcp_usage"
 [[migrations]]
 tag = "v2-remove-demo-card-do"
 deleted_classes = ["DemoCard"]
+
+[observability]
+enabled = true

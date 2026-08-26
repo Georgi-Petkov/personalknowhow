@@ -22,3 +22,6 @@ binding = "MCP_USAGE"
 dataset = "mcp_usage"
 
 # PRIVATE_MCP_TOKEN is set via `wrangler secret put PRIVATE_MCP_TOKEN` -- never here.
+
+[observability]
+enabled = true

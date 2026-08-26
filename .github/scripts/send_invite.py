@@ -12,11 +12,23 @@ RESEND_API_KEY = os.environ["RESEND_API_KEY"]
 REQUESTED_EMAIL = os.environ.get("INVITE_EMAIL", "").strip().lower()
 
 
-def send_email(to: str, subject: str, text: str) -> None:
+def send_email(
+    to: str, subject: str, text: str, html: str | None = None, tags: list[dict] | None = None
+) -> None:
+    payload = {"from": SEND_AS, "to": [to], "subject": subject, "text": text}
+    # html is required for Resend's open/click tracking to have anything to attach to
+    # (a 1x1 pixel and rewritten links both need an HTML body) -- a text-only send is
+    # invisible to both, confirmed live (2026-08-26): a real click on a text-only
+    # invite produced no email.clicked event at all, since there was nothing for
+    # click tracking to rewrite.
+    if html:
+        payload["html"] = html
+    if tags:
+        payload["tags"] = tags
     response = requests.post(
         "https://api.resend.com/emails",
         headers={"Authorization": f"Bearer {RESEND_API_KEY}"},
-        json={"from": SEND_AS, "to": [to], "subject": subject, "text": text},
+        json=payload,
         timeout=30,
     )
     response.raise_for_status()
@@ -79,6 +91,23 @@ This link is single-use and tied to this email address.
 Georgi
 """
 
-send_email(email, "Your PersonalKnowHow upload link", body)
+html_body = f"""<p>Hi,</p>
+<p>Thanks for your interest in PersonalKnowHow. Here's your personal upload link:</p>
+<p><a href="{upload_url}">{upload_url}</a></p>
+<p>You'll need LinkedIn's own data export (a zip file) to upload -- step-by-step guide here,
+including a heads-up about the two emails LinkedIn sends (wait for the second one, it's the
+complete archive, not the fast partial one):</p>
+<p><a href="https://personalknowhow.com/linkedin-data-export">https://personalknowhow.com/linkedin-data-export</a></p>
+<p>Once it's processed, you'll get your own MCP server you can connect to Claude to check your
+real background against any job posting or question -- grounded in what you've actually done,
+not just what a resume claims.</p>
+<p>This link is single-use and tied to this email address.</p>
+<p>Georgi</p>
+"""
+
+send_email(
+    email, "Your PersonalKnowHow upload link", body, html=html_body,
+    tags=[{"name": "token", "value": token}],
+)
 
 print(f"Invite sent to {email} (token {token})")

@@ -11,11 +11,20 @@ RESEND_API_KEY = os.environ["RESEND_API_KEY"]
 TOKEN = os.environ["INVITE_TOKEN"].strip()
 
 
-def send_email(to: str, subject: str, text: str) -> None:
+def send_email(
+    to: str, subject: str, text: str, html: str | None = None, tags: list[dict] | None = None
+) -> None:
+    payload = {"from": SEND_AS, "to": [to], "subject": subject, "text": text}
+    # html is required for Resend's open/click tracking to have anything to attach to
+    # -- see send_invite.py's send_email() for the same note and the live confirmation.
+    if html:
+        payload["html"] = html
+    if tags:
+        payload["tags"] = tags
     response = requests.post(
         "https://api.resend.com/emails",
         headers={"Authorization": f"Bearer {RESEND_API_KEY}"},
-        json={"from": SEND_AS, "to": [to], "subject": subject, "text": text},
+        json=payload,
         timeout=30,
     )
     response.raise_for_status()
@@ -82,6 +91,26 @@ web or Claude Desktop).
 Georgi
 """
 
-send_email(email, "Complete payment to process your PersonalKnowHow upload", body)
+html_test_mode_note = (
+    "<p><em>(Test mode: Stripe isn't wired up yet, so this link simulates a completed payment "
+    "instead of charging anything.)</em></p>"
+    if test_mode
+    else ""
+)
+
+html_body = f"""<p>Hi,</p>
+<p>Your PersonalKnowHow upload was received. One step left -- complete payment to start processing:</p>
+<p><a href="{pay_url}">{pay_url}</a></p>
+{html_test_mode_note}
+<p>Once confirmed, processing starts right away -- within 24 hours you'll get another email with
+your personal MCP connection link and step-by-step instructions to add it to Claude (Claude.ai
+web or Claude Desktop).</p>
+<p>Georgi</p>
+"""
+
+send_email(
+    email, "Complete payment to process your PersonalKnowHow upload", body, html=html_body,
+    tags=[{"name": "token", "value": TOKEN}],
+)
 
 print(f"Payment link sent to {email} (token {TOKEN})")
