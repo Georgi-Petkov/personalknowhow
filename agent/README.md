@@ -1,11 +1,16 @@
 # PKH job-fit agent
 
-Compares a job posting against the private knowledge graph — via the already
-deployed `personalknowhow-private` MCP server — and writes a grounded fit
+Compares a job posting against the private knowledge graph — via your own
+already-deployed individual private MCP Worker — and writes a grounded fit
 report. Unlike asking Claude Desktop/Code interactively (which already works,
 using the same MCP server attached to this very session), this is standalone,
 runnable code: a fixed system prompt, a printed tool-call trace, and code-
 enforced safety rails, rather than behavior that only exists inside a chat.
+
+There is no shared/generic private MCP server this points to by default --
+each person who forks this repo has their own individual private Worker
+(`<your-slug>-private.personalknowhow.com`), matching the rest of this
+project's fork-and-populate design. Set `PRIVATE_MCP_URL` to yours.
 
 ## What's actually agentic here
 
@@ -29,7 +34,8 @@ invoke — see Safety notes below for why.
 pip install -r ../requirements.txt   # adds `anthropic`
 
 export ANTHROPIC_API_KEY=...         # your own key -- billed per request, not currently set anywhere in this environment
-export PRIVATE_MCP_TOKEN=...         # the raw token in ../mcp-private/URLs.txt (the script adds "Bearer " itself)
+export PRIVATE_MCP_URL=...           # your own individual private Worker, e.g. https://<your-slug>-private.personalknowhow.com/mcp -- no shared default
+export PRIVATE_MCP_TOKEN=...         # the bearer token for that same Worker (set via `wrangler secret put PRIVATE_MCP_TOKEN` when it was deployed -- the script adds "Bearer " itself)
 ```
 
 ## Run

@@ -19,6 +19,7 @@ interface Entry {
   source_url: string | null;
   captured_at: string | null;
   provider: string | null;
+  evidence_tier: "demonstrated" | "signal_only";
   source_note: string | null;
 }
 
@@ -117,13 +118,11 @@ const EMBEDDING_MODEL = "@cf/baai/bge-base-en-v1.5";
 // Same empirically-tuned floor as mcp/src/index.ts -- see that file's comment.
 const SIM_FLOOR = 0.65;
 const TOP_N = 10;
-// saved_job_alert/job_seeker_preferences/saved_answer added 2026-08-10 --
-// same reasoning as career_interest/job_application: search intent, stated
-// preferences, and canned application answers are not proof of skill.
-const SIGNAL_ONLY_TYPES = new Set([
-  "career_interest", "job_application",
-  "saved_job_alert", "job_seeker_preferences", "saved_answer",
-]);
+// Cap per relation group in related_entries -- some tags are real hubs (e.g.
+// tag_python sits on 126+ entries in the full corpus), so an uncapped dump
+// would blow past anything a caller actually wants to read. count still
+// reports the true total so truncation is visible, not silent.
+const RELATED_CAP = 15;
 const ALL_TYPES = [
   "course", "project", "certification", "education", "endorsement",
   "position", "profile", "recommendation", "article",
@@ -171,6 +170,74 @@ function timingSafeEqual(a: string, b: string): boolean {
   return diff === 0;
 }
 
+// tags/provider are already resolved, joinable fields on every entry (see
+// ingest/build_private_export.py's node_tags/node_provider) -- no separate
+// graph-edge export needed, this is a plain self-join over ENTRIES.
+// evidence_tier travels with every related entry too -- a signal_only entry
+// showing up as "related" is still not proof of ability.
+function relatedGroup(entries: Entry[], excludeId: string, predicate: (e: Entry) => boolean) {
+  const matches = entries
+    .filter((e) => e.id !== excludeId && predicate(e))
+    .sort((a, b) => a.label.localeCompare(b.label));
+  return {
+    count: matches.length,
+    entries: matches.slice(0, RELATED_CAP).map((e) => ({
+      id: e.id,
+      label: e.label,
+      type: e.type,
+      evidence_tier: e.evidence_tier,
+    })),
+  };
+}
+
+// Powers skill_evidence: exact tag match (not semantic, unlike query_knowhow),
+// uncapped (unlike relatedGroup's RELATED_CAP), grouped by evidence_tier then
+// type with real counts -- so "zero demonstrated evidence for X" is directly
+// visible instead of requiring a manual walk of tagged_with edges in
+// graph.json. by_evidence_tier is always dense (both keys present, even at
+// count 0) since a tier reading 0 is exactly the signal this tool exists to
+// surface; by_type is sparse (only types with >=1 match) since a missing type
+// isn't itself the interesting signal. Each type's entries sort by
+// captured_at ascending (oldest first); null-dated entries move to the end
+// and are counted separately in undated_count rather than silently sorted as
+// if their date were known -- DataCamp's own API returns no completion date
+// for most courses, not an ingest bug.
+type EvidenceEntry = { id: string; label: string; captured_at: string | null };
+type TypeGroup = { count: number; undated_count: number; entries: EvidenceEntry[] };
+
+function groupByType(list: Entry[]): Record<string, TypeGroup> {
+  const byType: Record<string, TypeGroup> = {};
+  for (const e of list) {
+    byType[e.type] ??= { count: 0, undated_count: 0, entries: [] };
+    const g = byType[e.type];
+    g.count++;
+    if (!e.captured_at) g.undated_count++;
+    g.entries.push({ id: e.id, label: e.label, captured_at: e.captured_at });
+  }
+  for (const g of Object.values(byType)) {
+    g.entries.sort((a, b) => {
+      if (a.captured_at && b.captured_at) return a.captured_at.localeCompare(b.captured_at);
+      if (a.captured_at) return -1;
+      if (b.captured_at) return 1;
+      return 0;
+    });
+  }
+  return byType;
+}
+
+function groupEvidenceByTag(entries: Entry[], tag: string) {
+  const matches = entries.filter((e) => e.tags.includes(tag));
+  const demonstrated = matches.filter((e) => e.evidence_tier === "demonstrated");
+  const signalOnly = matches.filter((e) => e.evidence_tier === "signal_only");
+  return {
+    count: matches.length,
+    by_evidence_tier: {
+      demonstrated: { count: demonstrated.length, by_type: groupByType(demonstrated) },
+      signal_only: { count: signalOnly.length, by_type: groupByType(signalOnly) },
+    },
+  };
+}
+
 function createServer(env: Env) {
   const server = new McpServer({ name: "personalknowhow-private", version: "0.1.0" });
 
@@ -198,7 +265,10 @@ function createServer(env: Env) {
         "topically-adjacent-but-wrong entry above the floor " +
         "(e.g. a course on a different cloud data-warehouse tool, or a different framework in " +
         "the same category) for a term it isn't actually about; if a result isn't genuinely on " +
-        "topic, treat the query as unmatched rather than reporting it as a match.",
+        "topic, treat the query as unmatched rather than reporting it as a match. For 'what " +
+        "else is connected to this' or 'what shares a skill/provider with this specific " +
+        "entry' questions, call related_entries with a result's id instead of re-querying by " +
+        "topic.",
       inputSchema: { topic: z.string().describe("A skill, technology, or topic to check, e.g. 'django' or 'aws'") },
     },
     async ({ topic }) => {
@@ -207,9 +277,12 @@ function createServer(env: Env) {
       const vectors = getVectors();
 
       const scored = (ENTRIES as Entry[])
+        // entries.json and embeddings.json can drift (an entry added without a
+        // matching embedding regen) -- skip anything with no vector rather than
+        // crash the whole request over one missing entry.
+        .filter((e) => vectors.has(e.id))
         .map((e) => ({
           ...e,
-          evidence_tier: SIGNAL_ONLY_TYPES.has(e.type) ? "signal_only" : "demonstrated",
           score: Math.round(cosineSim(query, vectors.get(e.id)!) * 1000) / 1000,
         }))
         .filter((e) => e.score >= SIM_FLOOR)
@@ -241,10 +314,106 @@ function createServer(env: Env) {
     async ({ type }) => {
       const matches = (ENTRIES as Entry[])
         .filter((e) => e.type === type)
-        .map((e) => ({ ...e, evidence_tier: SIGNAL_ONLY_TYPES.has(e.type) ? "signal_only" : "demonstrated" }))
         .sort((a, b) => a.label.localeCompare(b.label));
 
       const result = { type, count: matches.length, entries: matches };
+      return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+    },
+  );
+
+  server.registerTool(
+    "related_entries",
+    {
+      description:
+        "PRIVATE, single-user tool -- given an entry id (from a prior query_knowhow or " +
+        "list_by_type result), returns other entries that share at least one tag or the " +
+        "same content provider -- the only two relationships this corpus currently tracks " +
+        "(there is no 'led to' or 'used in' relationship here, only shared tag/provider). " +
+        "This is NOT a similarity or relevance judgment -- two entries sharing a broad tag " +
+        "(e.g. both tagged 'data-science') can be quite different in substance; read each " +
+        `related entry's own label/type before treating it as meaningful. Each group is ` +
+        `capped at ${RELATED_CAP} entries, sorted by label, with the true total count shown ` +
+        "separately so you know if results were truncated -- call list_by_type on that type " +
+        "if you need the full set. `evidence_tier` follows the same rule as query_knowhow: " +
+        "never treat a signal_only related entry as proof of ability. Useful for 'what else " +
+        "is connected to X' or 'what did they do that relates to this specific course/" +
+        "certification/endorsement' -- questions query_knowhow's independent similarity " +
+        "search can't reliably answer, since two entries can be genuinely related without " +
+        "their description text reading alike (e.g. a course title and an endorsement " +
+        "phrase for the same skill, worded completely differently).",
+      inputSchema: { id: z.string().describe("An entry id from a prior query_knowhow or list_by_type result") },
+    },
+    async ({ id }) => {
+      const entries = ENTRIES as Entry[];
+      const target = entries.find((e) => e.id === id);
+      if (!target) {
+        const result = {
+          found: false,
+          note: "No entry with this id -- ids come from a prior query_knowhow or list_by_type result, never guess one.",
+        };
+        return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+      }
+
+      const related_by_tag: Record<string, ReturnType<typeof relatedGroup>> = {};
+      for (const tag of target.tags) {
+        related_by_tag[tag] = relatedGroup(entries, id, (e) => e.tags.includes(tag));
+      }
+      const related_by_provider = target.provider
+        ? relatedGroup(entries, id, (e) => e.provider === target.provider)
+        : null;
+
+      const result = {
+        id: target.id,
+        label: target.label,
+        type: target.type,
+        evidence_tier: target.evidence_tier,
+        tags: target.tags,
+        provider: target.provider,
+        related_by_tag,
+        related_by_provider,
+      };
+      return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+    },
+  );
+
+  server.registerTool(
+    "skill_evidence",
+    {
+      description:
+        "PRIVATE, single-user tool -- given an exact tag/skill (e.g. 'docker', 'gcp'), returns " +
+        "EVERY entry with that tag, uncapped, grouped by evidence_tier ('demonstrated' vs " +
+        "'signal_only') then by type, each group carrying a real count. Unlike related_entries " +
+        "(capped at 15, requires a starting entry id) or query_knowhow (semantic, ranked, may " +
+        "over- or under-include), this is an EXACT tag match against every entry -- the right " +
+        "tool for 'how many X do I have demonstrated evidence for' or 'do I have ANY demonstrated " +
+        "evidence for X, or only saved/applied signal'. by_evidence_tier.demonstrated.count === 0 " +
+        "means no real evidence exists for this tag, even if signal_only entries do. Tags are " +
+        "exact strings from a prior list_by_type/related_entries/query_knowhow result's tags " +
+        "array (e.g. 'data-governance', hyphenated) -- this is NOT semantic search; a tag that " +
+        "was never assigned during ingest (even if the skill genuinely appears in free text " +
+        "somewhere) returns found:false, not a fuzzy match -- try query_knowhow for that case " +
+        "instead. Each type's entries are sorted by captured_at ascending (oldest first); " +
+        "entries with no captured_at (e.g. most DataCamp course completions -- DataCamp's own " +
+        "API doesn't return that date) are moved to the end and counted in undated_count, never " +
+        "silently sorted as if their date were known.",
+      inputSchema: { tag: z.string().describe("An exact tag from a prior result's tags array, e.g. 'python', 'docker', 'gcp'") },
+    },
+    async ({ tag }) => {
+      const normalized = tag.trim().toLowerCase().replace(/\s+/g, "-");
+      const entries = ENTRIES as Entry[];
+      if (!entries.some((e) => e.tags.includes(normalized))) {
+        const result = {
+          tag: normalized,
+          found: false,
+          count: 0,
+          note: "No entries have this tag -- exact match, not semantic search. Tags come from a " +
+            "prior list_by_type/related_entries/query_knowhow result's tags array; check " +
+            "spelling/hyphenation (e.g. 'data-governance'). If the skill genuinely exists in the " +
+            "corpus but was never tagged, try query_knowhow instead.",
+        };
+        return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+      }
+      const result = { tag: normalized, found: true, ...groupEvidenceByTag(entries, normalized) };
       return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
     },
   );

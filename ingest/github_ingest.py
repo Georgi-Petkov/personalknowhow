@@ -28,7 +28,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 from merge import parse_file, merge_frontmatters, write_file  # noqa: E402
-from common import infer_tags, _slug  # noqa: E402
+from common import infer_tags, _slug, looks_garbled  # noqa: E402
 
 ROOT = Path(__file__).parent.parent
 CORPUS_OUT = ROOT / "corpus" / "github"
@@ -65,9 +65,14 @@ def fetch_readme(owner: str, name: str) -> str:
     if not b64:
         return ""
     try:
-        return base64.b64decode(b64).decode("utf-8", errors="ignore")[:README_CHARS]
+        text = base64.b64decode(b64).decode("utf-8", errors="ignore")[:README_CHARS]
     except Exception:
         return ""
+    # A README that isn't real UTF-8 text (e.g. it's actually binary, or in a
+    # different encoding) decodes into garbage under errors="ignore" instead
+    # of failing loudly -- confirmed real (corpus/github/storytelling.md).
+    # Treat it the same as no README rather than passing corruption downstream.
+    return "" if looks_garbled(text) else text
 
 
 def ingest_repo(owner: str, repo: dict) -> dict:

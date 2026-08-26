@@ -10,6 +10,9 @@ import re
 import sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).parent))
+from common import looks_garbled  # noqa: E402
+
 try:
     import yaml
 except ImportError:
@@ -57,7 +60,18 @@ def merge_frontmatters(records: list[dict]) -> dict:
                 incoming = v if isinstance(v, list) else [v]
                 merged[k] = sorted(set(str(t) for t in existing + incoming))
             elif k == "description":
-                if len(str(v)) > len(str(merged.get(k, ""))):
+                # "Longest wins" alone lets a corrupted value poison this
+                # field forever -- once garbage lands in the corpus, it's
+                # near-guaranteed to outlength a correct short fallback
+                # (confirmed real: corpus/github/storytelling.md). Never let
+                # a garbled candidate replace a clean existing value; always
+                # let a clean candidate replace a garbled existing one,
+                # regardless of length.
+                existing = str(merged.get(k, ""))
+                candidate = str(v)
+                if looks_garbled(candidate) and existing and not looks_garbled(existing):
+                    continue
+                if looks_garbled(existing) or len(candidate) > len(existing):
                     merged[k] = v
             elif k not in merged or not merged[k]:
                 merged[k] = v
