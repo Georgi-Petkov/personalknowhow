@@ -33,7 +33,7 @@ MAX_TEXT_CHARS = 1800
 
 sys.path.insert(0, str(Path(__file__).parent))
 from merge import parse_file  # noqa: E402
-from common import SOURCE_NOTE_BY_TYPE, DEFAULT_SOURCE_NOTE  # noqa: E402
+from common import SOURCE_NOTE_BY_TYPE, DEFAULT_SOURCE_NOTE, SIGNAL_TYPES, looks_garbled  # noqa: E402
 
 # Same folder->type mapping as build_public_export.py's ALLOWLIST, but this
 # script has no exclusions -- career_interests/job_applications get their own
@@ -131,8 +131,9 @@ def sanitize(text: str) -> str:
     cleaned = "".join(c for c in text if c.isprintable() or c in "\n\t").strip()
     if not cleaned:
         return ""
-    ascii_printable = sum(1 for c in cleaned if c.isascii() and c.isprintable())
-    if ascii_printable / len(cleaned) < 0.7:
+    # Shared with merge.py/github_ingest.py -- see common.looks_garbled's
+    # docstring for why the ASCII-ratio check alone isn't enough on its own.
+    if looks_garbled(cleaned):
         return ""
     return cleaned
 
@@ -183,6 +184,7 @@ def build_entries() -> list[dict]:
             "source_url": source_url,
             "captured_at": node.get("captured_at"),
             "provider": node_provider(node_id, nodes_by_id, links),
+            "evidence_tier": "signal_only" if type_ in SIGNAL_TYPES else "demonstrated",
             "source_note": None if source_url else SOURCE_NOTE_BY_TYPE.get(type_, DEFAULT_SOURCE_NOTE),
             "text": build_text(node.get("label", ""), type_, tags, description),
         })

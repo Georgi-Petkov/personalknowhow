@@ -38,7 +38,7 @@ MAX_TEXT_CHARS = 1800  # ~450 tokens headroom under bge-base's 512 max
 
 sys.path.insert(0, str(Path(__file__).parent))
 from merge import parse_file  # noqa: E402
-from common import SOURCE_NOTE_BY_TYPE, DEFAULT_SOURCE_NOTE  # noqa: E402
+from common import SOURCE_NOTE_BY_TYPE, DEFAULT_SOURCE_NOTE, looks_garbled  # noqa: E402
 
 # Prefix -> output type. "linkedin" is deliberately never used as a bare key
 # -- that would also match linkedin/job_applications/ and
@@ -157,9 +157,10 @@ def sanitize(text: str) -> str:
     cleaned = "".join(c for c in text if c.isprintable() or c in "\n\t").strip()
     if not cleaned:
         return ""
-    ascii_printable = sum(1 for c in cleaned if c.isascii() and c.isprintable())
-    if ascii_printable / len(cleaned) < 0.7:
-        return ""  # drops garbled/mojibake descriptions (confirmed real in a few github/ entries)
+    # Shared with merge.py/github_ingest.py -- see common.looks_garbled's
+    # docstring for why the ASCII-ratio check alone isn't enough on its own.
+    if looks_garbled(cleaned):
+        return ""
     return cleaned
 
 

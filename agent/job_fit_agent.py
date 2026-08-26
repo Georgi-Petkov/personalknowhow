@@ -29,9 +29,12 @@ import anthropic
 ROOT = Path(__file__).parent.parent
 REPORTS_DIR = ROOT / "data" / "job_fit_reports"
 
-PRIVATE_MCP_URL = os.environ.get(
-    "PRIVATE_MCP_URL", "https://personalknowhow-private.kxtwrdzt6g.workers.dev/mcp"
-)
+# No default on purpose -- this must be the caller's own individual private MCP
+# Worker (e.g. https://<your-slug>-private.personalknowhow.com/mcp), never a
+# shared/generic one. A hardcoded default here would point everyone who forks
+# this repo at one specific person's data, which defeats the whole
+# fork-and-populate design this project otherwise follows.
+PRIVATE_MCP_URL = os.environ.get("PRIVATE_MCP_URL")
 MODEL = "claude-opus-5"
 MCP_BETA = "mcp-client-2025-11-20"
 MAX_PAUSE_RETRIES = 6
@@ -289,11 +292,20 @@ def main() -> None:
     )
     args = parser.parse_args()
 
+    if not PRIVATE_MCP_URL:
+        sys.exit(
+            "PRIVATE_MCP_URL is not set -- point this at your own individual private MCP "
+            "Worker (e.g. https://<your-slug>-private.personalknowhow.com/mcp), the same one "
+            "your Claude Desktop/Code config connects to. There is no shared default -- "
+            "export it: export PRIVATE_MCP_URL=<url>"
+        )
     token = os.environ.get("PRIVATE_MCP_TOKEN")
     if not token:
         sys.exit(
-            "PRIVATE_MCP_TOKEN is not set. The raw token is in mcp-private/URLs.txt "
-            "-- export it: export PRIVATE_MCP_TOKEN=<token>"
+            "PRIVATE_MCP_TOKEN is not set. This is the bearer token for your own private "
+            "Worker (set via `wrangler secret put PRIVATE_MCP_TOKEN` when it was deployed -- "
+            "check your Claude Desktop config or wherever you saved it) -- export it: "
+            "export PRIVATE_MCP_TOKEN=<token>"
         )
     if not os.environ.get("ANTHROPIC_API_KEY"):
         sys.exit("ANTHROPIC_API_KEY is not set.")

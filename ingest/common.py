@@ -167,6 +167,32 @@ def _slug(text: str) -> str:
     return re.sub(r"[^a-z0-9]+", "_", text.lower()).strip("_")[:60]
 
 
+def looks_garbled(text: str) -> bool:
+    """True if text looks like corrupted/mis-decoded binary data rather than
+    real prose -- e.g. a README that wasn't actually valid UTF-8 and got
+    silently mangled by a permissive decode (confirmed real case:
+    corpus/github/storytelling.md).
+
+    Stripping control characters and checking the ASCII-printable ratio
+    alone isn't enough: after control chars are stripped, that real garbled
+    string was still ~85% printable ASCII (scattered Latin letters,
+    brackets, commas), comfortably above a 0.7 floor. The actual tell is
+    something neither check looks at -- genuine prose has regular
+    word-spacing (English averages a space roughly every 5-7 characters);
+    the corrupted string had exactly one space in ~33 characters. Texts
+    under 20 chars are never flagged -- too short to judge reliably, and a
+    real short description (a single term, a compact name) can legitimately
+    have no spaces at all.
+    """
+    stripped = "".join(c for c in text if c.isprintable() or c in "\n\t")
+    if len(stripped) < 20:
+        return False
+    if stripped.count(" ") / len(stripped) < 0.05:
+        return True
+    ascii_printable = sum(1 for c in stripped if c.isascii() and c.isprintable())
+    return ascii_printable / len(stripped) < 0.7
+
+
 # ---------------------------------------------------------------------------
 # Gmail message parsing — used by linkedin_export_email.py
 # ---------------------------------------------------------------------------
@@ -296,6 +322,18 @@ DEMONSTRATED_TYPES = {
     "recommendation", "article", "endorsement", "organization", "language",
     "honor", "publication", "patent", "volunteering", "test_score",
     "skill_assessment", "track",
+}
+
+# The private-tier mirror of DEMONSTRATED_TYPES above -- search intent, stated
+# preferences, and canned application answers, never proof of skill. Single-
+# sourced here so evidence_tier is computed once, at export time, and shipped
+# as a real field on private-tier entries -- not recomputed independently per
+# private-tier Worker source tree (mcp-private/src/index.ts,
+# mcp-customer-template/src/index.ts) with no shared source of truth between
+# them. Values match mcp-private/src/index.ts's SIGNAL_ONLY_TYPES.
+SIGNAL_TYPES = {
+    "career_interest", "job_application",
+    "saved_job_alert", "job_seeker_preferences", "saved_answer",
 }
 
 SIM_FLOOR = 0.65        # "known" -- same floor validated live against this model/corpus
