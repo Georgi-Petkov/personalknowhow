@@ -3,6 +3,7 @@ export interface Env {
   DB: D1Database;
   STORAGE: R2Bucket;
   STRIPE_WEBHOOK_SECRET: string;
+  RESEND_WEBHOOK_SECRET: string;
   SLUG_HMAC_KEY: string;
   SITE_EVENTS: AnalyticsEngineDataset;
 }
@@ -64,6 +65,53 @@ async function verifyStripeSignature(payload: string, header: string, secret: st
   let diff = 0;
   for (let i = 0; i < expected.length; i++) diff |= expected.charCodeAt(i) ^ signature.charCodeAt(i);
   return diff === 0;
+}
+
+// Resend webhooks are Svix-signed -- headers svix-id/svix-timestamp/svix-signature,
+// HMAC-SHA256 over "<svix-id>.<svix-timestamp>.<raw body>". Unlike Stripe's secret
+// above (used as a raw UTF-8 string), the Svix secret is base64-encoded -- strip the
+// "whsec_" prefix and base64-decode it into raw key bytes before importing. The
+// signature itself is base64, not hex. svix-signature can carry multiple
+// space-separated "v1,<sig>" entries (secret rotation) -- accept if any one matches.
+// Timestamp tolerance matches verifyStripeSignature's (5 minutes).
+async function verifyResendSignature(
+  payload: string, svixId: string, svixTimestamp: string, svixSignature: string, secret: string,
+): Promise<boolean> {
+  if (!svixId || !svixTimestamp || !svixSignature) return false;
+
+  const ageSeconds = Math.abs(Date.now() / 1000 - Number(svixTimestamp));
+  if (!Number.isFinite(ageSeconds) || ageSeconds > 300) return false;
+
+  const secretBytes = Uint8Array.from(atob(secret.replace(/^whsec_/, "")), (c) => c.charCodeAt(0));
+  const key = await crypto.subtle.importKey(
+    "raw", secretBytes, { name: "HMAC", hash: "SHA-256" }, false, ["sign"],
+  );
+  const sigBytes = await crypto.subtle.sign(
+    "HMAC", key, new TextEncoder().encode(`${svixId}.${svixTimestamp}.${payload}`),
+  );
+  const expected = btoa(String.fromCharCode(...new Uint8Array(sigBytes)));
+
+  return svixSignature.split(" ").some((entry) => {
+    const sig = entry.startsWith("v1,") ? entry.slice(3) : entry;
+    if (sig.length !== expected.length) return false;
+    let diff = 0;
+    for (let i = 0; i < sig.length; i++) diff |= sig.charCodeAt(i) ^ expected.charCodeAt(i);
+    return diff === 0;
+  });
+}
+
+// The upload-link email embeds "?token=<uuid>" directly, so a clicked link is a
+// second, independent way to recover the invite token beyond the Resend `tags`
+// field (data.tags.token, set on send by send_invite.py/send_payment_link.py) --
+// useful as a fallback for any email sent before tagging existed. Never throws on
+// a malformed/non-URL link; that must never crash the webhook handler.
+function parseTokenFromLink(link: unknown): string | null {
+  if (typeof link !== "string") return null;
+  try {
+    return new URL(link).searchParams.get("token");
+  } catch {
+    return null;
+  }
 }
 
 export default {
@@ -164,6 +212,65 @@ export default {
           ).bind(typeof status === "string" ? status : "canceled", subscriptionId).run();
         }
       }
+
+      return Response.json({ received: true });
+    }
+
+    if (url.pathname === "/api/resend-webhook" && request.method === "POST") {
+      const rawBody = await request.text();
+      const svixId = request.headers.get("svix-id") ?? "";
+      const svixTimestamp = request.headers.get("svix-timestamp") ?? "";
+      const svixSignature = request.headers.get("svix-signature") ?? "";
+
+      if (!(await verifyResendSignature(rawBody, svixId, svixTimestamp, svixSignature, env.RESEND_WEBHOOK_SECRET))) {
+        return new Response("Invalid signature", { status: 400 });
+      }
+
+      let event: {
+        type?: string;
+        created_at?: string;
+        data?: {
+          email_id?: string;
+          to?: string[];
+          tags?: Record<string, string>;
+          click?: { link?: string };
+          bounce?: { type?: string; message?: string };
+        };
+      };
+      try {
+        event = JSON.parse(rawBody);
+      } catch {
+        return new Response("Invalid JSON", { status: 400 });
+      }
+
+      const data = event.data ?? {};
+      // tags is the primary correlation path (present on every event type, not just
+      // clicks) -- falls back to parsing the clicked link's own ?token= only for
+      // email.clicked events sent before the `tags` field existed on the send call.
+      const uploadToken =
+        data.tags?.token ?? (event.type === "email.clicked" ? parseTokenFromLink(data.click?.link) : null);
+
+      // svix_id is the dedup key -- Resend retries with backoff on any non-200
+      // response, and INSERT OR IGNORE means a redelivered event is a silent no-op
+      // instead of a duplicate row, the same pattern referral_credits already uses
+      // to dedup on Stripe's checkout session id.
+      await env.DB.prepare(
+        "INSERT OR IGNORE INTO email_events " +
+        "(svix_id, event_type, email_id, recipient, upload_token, clicked_url, bounce_type, bounce_message, event_created_at, received_at, raw_payload) " +
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+      ).bind(
+        svixId,
+        event.type ?? "unknown",
+        data.email_id ?? "",
+        data.to?.[0] ?? null,
+        uploadToken,
+        data.click?.link ?? null,
+        data.bounce?.type ?? null,
+        data.bounce?.message ?? null,
+        event.created_at ?? new Date().toISOString(),
+        new Date().toISOString(),
+        rawBody,
+      ).run();
 
       return Response.json({ received: true });
     }
