@@ -15,3 +15,6 @@ google-auth-oauthlib
 
 # Job-fit agent (agent/job_fit_agent.py)
 anthropic
+
+# Local semantic search (ingest/query_local.py) — no Cloudflare account needed
+sentence-transformers
