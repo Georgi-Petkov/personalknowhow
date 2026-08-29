@@ -3,9 +3,47 @@
 **[Join the Waitlist](https://personalknowhow.com)** · [Live Demo](#try-the-live-demo) · [Issues](https://github.com/Georgi-Petkov/personalknowhow/issues)
 
 Turns a scattered personal learning/work history — LinkedIn, GitHub, course platforms, Gmail
-completion emails, sibling project repos — into a unified knowledge graph, served over two
-real, deployed [MCP](https://modelcontextprotocol.io/) servers so any MCP-aware client (Claude
-Desktop, etc.) can query it with semantic search instead of keyword matching.
+completion emails, sibling project repos — into a unified knowledge graph, queryable with
+semantic search instead of keyword matching. Run it locally against your own data in two
+commands, no account required — or query the real, deployed
+[MCP](https://modelcontextprotocol.io/) servers described further down.
+
+## Try it locally in 60 seconds
+
+No Cloudflare account, no signup, nothing deployed — just your own machine.
+
+```bash
+git clone https://github.com/Georgi-Petkov/personalknowhow.git
+cd personalknowhow
+python quickstart.py
+python ingest/query_local.py "what do I know about X"
+```
+
+`quickstart.py` auto-detects whatever sources are already available on your machine and skips
+the rest with a clear reason — at minimum, an already-authenticated GitHub CLI (`gh auth login`)
+or your sibling project repos are enough to get real results. `query_local.py` embeds your graph
+with a small local model ([`BAAI/bge-small-en-v1.5`](https://huggingface.co/BAAI/bge-small-en-v1.5)
+via `sentence-transformers`, downloaded once from Hugging Face on first run — the one real network
+dependency of local mode, distinct from needing a *cloud account*) and ranks results by cosine
+similarity, the same approach the deployed MCP servers use.
+
+**Want your own LinkedIn history in the graph, not just GitHub/local-project evidence?** Request
+your export at linkedin.com → Settings & Privacy → Data privacy → *Get a copy of your data*, then:
+
+```bash
+python quickstart.py --linkedin ~/Downloads/LinkedInDataExport.zip
+python ingest/query_local.py "what do I know about X"
+```
+
+`quickstart.py` handles unzipping and routing it to the right ingest script itself — no manual
+file placement, no flags to figure out. (Requesting the export happens entirely on LinkedIn's
+site and can take a few minutes for them to prepare — everything after that is the two commands
+above.)
+
+Every other source (edX, DataCamp, Gmail) needs its own one-time setup (a hand-populated JSON
+file or OAuth credentials) — `quickstart.py` detects and skips each one gracefully with a
+one-line reason if it's not set up; see [`ingest/CLAUDE.md`](ingest/CLAUDE.md) for per-source
+details if you want to add one.
 
 ## Try the live demo
 
@@ -109,20 +147,24 @@ against CV bullets with an explicit two-tier system (exact-term matches vs. sema
 matches, the latter always labeled "verify before claiming" rather than asserted), and
 `ingest/recommend_courses.py` cross-references course catalogs against coverage gaps.
 
-## Running locally
+## Running individual ingest sources manually
+
+`python quickstart.py` (see the top of this README) runs everything below automatically for
+whichever sources it detects. For finer control — a single source, non-default flags, or
+re-running just one step after a corpus change — run any of these directly:
 
 ```bash
 pip install -r requirements.txt
+
+# Run a specific ingest source, e.g.:
+python ingest/github_ingest.py
+python ingest/linkedin_api_ingest.py --domains PROFILE,POSITIONS,SKILLS
 
 # Deduplicate corpus after any ingest run
 python ingest/merge.py
 
 # Build graph.json from corpus/
 python ingest/build_graph.py
-
-# Run a specific ingest source, e.g.:
-python ingest/github_ingest.py
-python ingest/linkedin_api_ingest.py --domains PROFILE,POSITIONS,SKILLS
 ```
 
 Each `ingest/*_ingest.py` script is independent — run whichever sources apply to you. All of them
@@ -145,7 +187,10 @@ domain_tags:
 ---
 ```
 
-## Deploying the MCP servers
+## Deploy your own hosted MCP server (optional, needs a Cloudflare account)
+
+Local mode (above) is enough to query your own graph — this section is only for hosting it as a
+real MCP server other clients/people can connect to, the same way the live demo works.
 
 ```bash
 cd mcp && npm install && npm run deploy        # public server
