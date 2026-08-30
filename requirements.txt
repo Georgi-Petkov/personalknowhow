@@ -18,3 +18,6 @@ anthropic
 
 # Local semantic search (ingest/query_local.py) — no Cloudflare account needed
 sentence-transformers
+
+# Job-market Gold table queries (ingest/query_job_market_gold.py)
+databricks-sqlalchemy>=2.0
