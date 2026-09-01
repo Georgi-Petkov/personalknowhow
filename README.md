@@ -8,6 +8,10 @@ semantic search instead of keyword matching. Run it locally against your own dat
 commands, no account required — or query the real, deployed
 [MCP](https://modelcontextprotocol.io/) servers described further down.
 
+![PersonalKnowHow answering a job-fit question against the graph](design/demo/personalknowhow-demo.gif)
+
+*Asking Claude (via the deployed MCP server) to evaluate a job posting against the graph — real evidence pulled from LinkedIn/GitHub history, not a guess. ([full-resolution video](design/demo/personalknowhow-demo.mp4))*
+
 ## Try it locally in 60 seconds
 
 No Cloudflare account, no signup, nothing deployed — just your own machine.
