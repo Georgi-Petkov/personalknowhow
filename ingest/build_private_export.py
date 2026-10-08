@@ -33,7 +33,7 @@ MAX_TEXT_CHARS = 1800
 
 sys.path.insert(0, str(Path(__file__).parent))
 from merge import parse_file  # noqa: E402
-from common import SOURCE_NOTE_BY_TYPE, DEFAULT_SOURCE_NOTE, SIGNAL_TYPES, looks_garbled  # noqa: E402
+from common import SOURCE_NOTE_BY_TYPE, DEFAULT_SOURCE_NOTE, SIGNAL_TYPES, looks_garbled, looks_like_injection  # noqa: E402
 
 # Same folder->type mapping as build_public_export.py's ALLOWLIST, but this
 # script has no exclusions -- career_interests/job_applications get their own
@@ -135,6 +135,10 @@ def sanitize(text: str) -> str:
     # docstring for why the ASCII-ratio check alone isn't enough on its own.
     if looks_garbled(cleaned):
         return ""
+    # Flag, don't drop -- a legitimate document can quote an injection
+    # phrase, so this is a build-time warning for human review, not a filter.
+    if looks_like_injection(cleaned):
+        print(f"WARNING: possible prompt injection, kept but flagged: {cleaned[:80]!r}", file=sys.stderr)
     return cleaned
 
 

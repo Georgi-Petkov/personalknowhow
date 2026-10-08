@@ -193,6 +193,39 @@ def looks_garbled(text: str) -> bool:
     return ascii_printable / len(stripped) < 0.7
 
 
+# Small, high-precision set -- same intents latence's reference content
+# screener flags (github.com/ddickmann/latence), trimmed to what's worth
+# checking here: no fuzzy/obfuscation matching, no cross-chunk boundary pass,
+# just literal phrases over already-lowercased text.
+_INJECTION_PATTERNS: tuple[re.Pattern[str], ...] = (
+    re.compile(r"ignore\s+(all\s+)?(the\s+)?(previous|prior|above)\s+instructions"),
+    re.compile(r"disregard\s+(all\s+)?(the\s+)?(previous|prior|above)"),
+    re.compile(r"you\s+are\s+now\s+(a|an|in)\b"),
+    re.compile(r"system\s+prompt"),
+    re.compile(r"reveal\s+(your|the)\s+(system\s+)?(prompt|instructions)"),
+    re.compile(r"override\s+(your|the)\s+(safety|guardrails|instructions)"),
+    re.compile(r"do\s+anything\s+now"),
+)
+
+
+def looks_like_injection(text: str) -> bool:
+    """True if text contains a phrase commonly used to hijack an LLM reading
+    it (e.g. "ignore previous instructions") -- a possible prompt-injection
+    attempt embedded in third-party-authored corpus text (a LinkedIn
+    recommendation someone else wrote, a scraped job posting, a GitHub
+    README) that later gets served verbatim through the MCP tools straight
+    into an agent's context.
+
+    Deliberately just a signal, not a filter: a legitimate document can
+    quote one of these phrases (an article about prompt injection, say), so
+    callers should flag rather than drop -- same reasoning as
+    looks_garbled(), which only ever drops text it's confident is corrupted,
+    never text it's merely suspicious of.
+    """
+    lowered = text.lower()
+    return any(p.search(lowered) for p in _INJECTION_PATTERNS)
+
+
 # ---------------------------------------------------------------------------
 # Gmail message parsing — used by linkedin_export_email.py
 # ---------------------------------------------------------------------------
