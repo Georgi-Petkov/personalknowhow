@@ -115,7 +115,7 @@ def extract_from_corpus(corpus: Path) -> dict:
             continue
 
         rel = str(md_file.relative_to(corpus))
-        node_id = _slug(md_file.stem)
+        node_id = _slug(rel.rsplit(".", 1)[0])
         add_node(
             node_id, title, rel,
             captured_at=str(fm.get("date", "")) or None,

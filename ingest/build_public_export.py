@@ -38,7 +38,7 @@ MAX_TEXT_CHARS = 1800  # ~450 tokens headroom under bge-base's 512 max
 
 sys.path.insert(0, str(Path(__file__).parent))
 from merge import parse_file  # noqa: E402
-from common import SOURCE_NOTE_BY_TYPE, DEFAULT_SOURCE_NOTE, looks_garbled  # noqa: E402
+from common import SOURCE_NOTE_BY_TYPE, DEFAULT_SOURCE_NOTE, looks_garbled, looks_like_injection  # noqa: E402
 
 # Prefix -> output type. "linkedin" is deliberately never used as a bare key
 # -- that would also match linkedin/job_applications/ and
@@ -161,6 +161,10 @@ def sanitize(text: str) -> str:
     # docstring for why the ASCII-ratio check alone isn't enough on its own.
     if looks_garbled(cleaned):
         return ""
+    # Flag, don't drop -- a legitimate document can quote an injection
+    # phrase, so this is a build-time warning for human review, not a filter.
+    if looks_like_injection(cleaned):
+        print(f"WARNING: possible prompt injection, kept but flagged: {cleaned[:80]!r}", file=sys.stderr)
     return cleaned
 
 
