@@ -53,3 +53,14 @@ linkedin/PKH_LAUNCH_CAMPAIGN.md
 CLAUDE.md
 query_claudflare.ipynb
 ingest/query_mcp_usage.py
+
+# graft's local graph cache — regenerable, not committed (run `graft build`).
+/graft/
+
+# Archived local folders moved in from ~/Documents/Projects — contain customer/personal
+# data (entries.json, embeddings.json, data.json). Never commit.
+/PKH_customer_deploys/
+/personalknowhow-demo/
+
+# LinkedIn posts, tracker and strategy — personal, never on GitHub.
+linkedin/

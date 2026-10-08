@@ -1,0 +1,19 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.Georgi-Petkov/personalknowhow",
+  "title": "PersonalKnowHow",
+  "description": "Live public demo: query one person's learning and work history as a knowledge graph via MCP.",
+  "websiteUrl": "https://personalknowhow.com",
+  "repository": {
+    "url": "https://github.com/Georgi-Petkov/personalknowhow",
+    "source": "github",
+    "subfolder": "mcp"
+  },
+  "version": "1.0.0",
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://personalknowhow-demo.kxtwrdzt6g.workers.dev/mcp"
+    }
+  ]
+}
