@@ -94,3 +94,90 @@ instead rather than silently running on empty content.
   model calls.
 - Run manually, like every other script in this repo — not wired into any
   cron or CI, consistent with PKH's no-automation-on-personal-data policy.
+
+---
+
+# token_usage_benchmark.py
+
+Measures real, measured token/cost/latency numbers comparing two ways of
+answering questions about a personal knowledge corpus: attaching raw
+LinkedIn export CSVs as Files API documents ("Method A", a disclosed proxy
+for uploading files to a Claude Project) vs. querying the public
+`personalknowhow-demo` MCP Worker ("Method B", same connector pattern as
+`job_fit_agent.py` above). Built as a follow-up to a published article
+making the same comparison qualitatively, with no measured numbers — see
+`~/.claude/plans/that-s-going-to-be-valiant-bachman.md` for the full design.
+
+**This is the first script in this repo to read `response.usage` at all.**
+
+## Setup
+
+```
+pip install -r ../requirements.txt   # adds `anthropic`
+export ANTHROPIC_API_KEY=...         # your own key -- billed per request
+```
+
+No `PRIVATE_MCP_URL`/`PRIVATE_MCP_TOKEN` needed for the default run — Method
+B points at the public, no-auth demo Worker. Those two vars are only needed
+for the optional `--private-evidence-extension` (see below).
+
+## Run
+
+**Always `--dry-run` first** — zero network calls, a local token estimate,
+and the only place a context-window overflow gets caught before it costs
+anything:
+
+```
+python token_usage_benchmark.py --export-dir ~/Documents/PKH_raw_export_archive_2026-08-10/Complete_LinkedInDataExport_07-07-2026.zip --dry-run
+```
+
+Then a small, bounded smoke test before trusting the numbers for anything
+public:
+
+```
+python token_usage_benchmark.py --export-dir <same path> --questions q3,q5 --methods both
+```
+
+Then the full run, once the smoke test's `usage` numbers and answers have
+been manually checked for plausibility:
+
+```
+python token_usage_benchmark.py --export-dir <same path>
+```
+
+Useful flags: `--methods files|graph|both`, `--questions q1,q4,q7` (cost
+bounding), `--model claude-sonnet-5` (cheaper trial runs), `--yes` (skip the
+interactive spend confirmation, for scripted use).
+
+## Method A's file scope
+
+`--export-dir` should point at the real raw LinkedIn export (the unpacked
+`Complete_LinkedInDataExport_*` directory, archived outside this repo at
+`~/Documents/PKH_raw_export_archive_2026-08-10/` per the root `CLAUDE.md`).
+By default, only the files listed in `token_usage_benchmark_files.txt` are
+attached — a safer subset that excludes `messages.csv`, `PhoneNumbers.csv`,
+`Connections.csv`, and other third-party-PII or signal-only files, so
+nothing sensitive gets sent through the API just to measure token counts.
+`--all-files` opts into the full export instead (explicit, never a silent
+default) — note that the full export is large enough it may approach or
+exceed the model's context window on its own; `--dry-run` will warn if so.
+
+## Output
+
+`../data/token_usage_benchmark/<date>.json` (full per-question detail plus a
+`methodology` block — model, pricing source/date, exact file manifest, MCP
+URL, and the Files-API-proxy disclosure) and a human-readable `<date>.md`
+summary table, including an efficiency-ratio row (Method A tokens ÷ Method B
+tokens). Never overwrites — a same-day re-run gets a time-suffixed filename.
+`data/` is gitignored; publishing specific numbers into an article remains a
+manual, human step.
+
+## Safety notes
+
+- Costs real money past `--dry-run` — always dry-run first, then a bounded
+  `--questions` smoke test, before a full run.
+- `--private-evidence-extension` is off by default and, if used, writes to a
+  separately-named `..._private_evidence.json` file — never merged into the
+  public-tier headline numbers, since only the private tier has a
+  `demonstrated`/`signal_only` field to test against.
+- Run manually, same no-cron/no-CI policy as every other script here.

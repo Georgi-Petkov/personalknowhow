@@ -1,0 +1,32 @@
+# File manifest for token_usage_benchmark.py's "Method A" (files-in-Project proxy).
+#
+# Deliberately a *safer subset* of the real raw LinkedIn export at
+# ~/Documents/PKH_raw_export_archive_2026-08-10/Complete_LinkedInDataExport_07-07-2026.zip/
+# (an unpacked directory despite the ".zip" name) -- not all 49 files.
+#
+# Selection mirrors the same domains ingest/build_public_export.py already
+# allowlists for the public corpus (course/project/certification/education/
+# position/profile/recommendation/article/endorsement), applied here to the
+# raw export's filenames instead of corpus/ subfolders. Deliberately excludes
+# messages.csv, PhoneNumbers.csv, Connections.csv, Invitations.csv,
+# SearchQueries.csv, Inferences_about_you.csv, Receipts_v2.csv,
+# SavedJobAlerts.csv, all other *messages*.csv files, Security Challenges.csv,
+# the Verifications/ and Jobs/ subdirectories, and ad/engagement/account-log
+# files -- third-party PII, signal-only, or account-security data, none of it
+# needed to answer this benchmark's question set. See the plan at
+# ~/.claude/plans/that-s-going-to-be-valiant-bachman.md for the full reasoning.
+#
+# One filename per line, relative to --export-dir. Lines starting with # are
+# comments. Blank lines ignored.
+
+Certifications.csv
+Courses.csv
+Education.csv
+Endorsement_Received_Info.csv
+Learning.csv
+Positions.csv
+Profile.csv
+Profile Summary.csv
+Recommendations_Received.csv
+Skills.csv
+Articles/Articles/why-your-health-data-isnt-ready-ai-what-do-georgi-petkov-ywgye.html
